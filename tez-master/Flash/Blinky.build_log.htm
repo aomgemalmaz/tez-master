@@ -3,66 +3,71 @@
 <pre>
 <h1>µVision Build Log</h1>
 <h2>Tool Versions:</h2>
-IDE-Version: µVision V5.14.0.0
-Copyright (C) 2015 ARM Ltd and ARM Germany GmbH. All rights reserved.
-License Information: Atom Atom, yasar university, LIC=----
+IDE-Version: µVision V5.20.0.0
+Copyright (C) 2016 ARM Ltd and ARM Germany GmbH. All rights reserved.
+License Information: aom PC1, aom, LIC=----
  
 Tool Versions:
-Toolchain:       MDK-Lite  Version: 5.14.0.0
+Toolchain:       MDK-Lite  Version: 5.20
 Toolchain Path:  C:\Keil_v5\ARM\ARMCC\Bin
-C Compiler:      Armcc.exe V5.05 update 1 (build 106)
-Assembler:       Armasm.exe V5.05 update 1 (build 106)
-Linker/Locator:  ArmLink.exe V5.05 update 1 (build 106)
-Library Manager: ArmAr.exe V5.05 update 1 (build 106)
-Hex Converter:   FromElf.exe V5.05 update 1 (build 106)
-CPU DLL:         SARMCM3.DLL V5.14.0.0
-Dialog DLL:      DARMCM1.DLL V1.12.0.0
-Target DLL:      CMSIS_AGDI.dll V1.21.0.0
-Dialog DLL:      TARMCM1.DLL V1.9.0.0
+C Compiler:      Armcc.exe V5.06 update 2 (build 183)
+Assembler:       Armasm.exe V5.06 update 2 (build 183)
+Linker/Locator:  ArmLink.exe V5.06 update 2 (build 183)
+Library Manager: ArmAr.exe V5.06 update 2 (build 183)
+Hex Converter:   FromElf.exe V5.06 update 2 (build 183)
+CPU DLL:         SARMCM3.DLL V5.20
+Dialog DLL:      DARMCM1.DLL V1.14.0.0
+Target DLL:      CMSIS_AGDI.dll V1.25.20.0
+Dialog DLL:      TARMCM1.DLL V1.10.0.0
  
 <h2>Project:</h2>
-C:\Users\emrmrcn\Desktop\Thesis Codes Github\tez\Blinky.uvprojx
-Project File Date:  06/28/2015
+C:\Users\PC1\Desktop\tez-master\tez-master\Blinky.uvprojx
+Project File Date:  06/26/2016
 
 <h2>Output:</h2>
+*** Using Compiler 'V5.06 update 2 (build 183)', folder: 'C:\Keil_v5\ARM\ARMCC\Bin'
 Rebuild target 'CMSIS-DAP'
-compiling Blinky.c...
-Blinky.c(325): warning:  #177-D: variable "marcStatus" was declared but never referenced
-        char marcStatus;
-Blinky.c: 1 warning, 0 errors
 assembling startup_MKL25Z4.s...
 compiling system_MKL25Z4.c...
+compiling Blinky.c...
+Blinky.c(330): warning:  #177-D: variable "i" was declared but never referenced
+  	uint16_t i;
+Blinky.c(454): warning:  #177-D: variable "marcStatus" was declared but never referenced
+  	char marcStatus;
+Blinky.c: 2 warnings, 0 errors
 linking...
-Program Size: Code=11244 RO-data=500 RW-data=44 ZI-data=1268  
-".\Flash\Blinky.axf" - 0 Error(s), 1 Warning(s).
+Program Size: Code=11460 RO-data=500 RW-data=56 ZI-data=496  
+".\Flash\Blinky.axf" - 0 Error(s), 2 Warning(s).
 
 <h2>Software Packages used:</h2>
 
 Package Vendor: ARM
-                http://www.keil.com/pack/ARM.CMSIS.4.2.0.pack
-                ARM::CMSIS:CORE:3.40.0
+                http://www.keil.com/pack/ARM.CMSIS.5.0.0-Beta4.pack
+                ARM::CMSIS:CORE:5.0.0
                 CMSIS (Cortex Microcontroller Software Interface Standard)
-   * Component: CORE Version: 3.40.0
+   * Component: CORE Version: 5.0.0
 
 Package Vendor: Keil
-                http://www.keil.com/pack/Keil.Kinetis_KLxx_DFP.1.4.0.pack
-                Keil::Device:Startup:1.0.0
+                http://www.keil.com/pack/Keil.Kinetis_KLxx_DFP.1.11.0.pack
+                Keil::Device:Startup:2.5.0
                 Freescale Kinetis KLxx Series Device Support and Examples
-   * Component: Startup Version: 1.0.0
+   * Component: Startup Version: 2.5.0
 
 <h2>Collection of Component include folders:</h2>
-  C:\Users\emrmrcn\Desktop\Thesis Codes Github\tez\RTE
-  C:\Keil_v5\ARM\PACK\ARM\CMSIS\4.2.0\CMSIS\Include
-  C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.4.0\Device\Include
+  C:\Users\PC1\Desktop\tez-master\tez-master\RTE
+  C:\Users\PC1\Desktop\tez-master\tez-master\RTE\Device\MKL25Z128xxx4
+  C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.0.0-Beta4\CMSIS\Include
+  C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.11.0\Device\Include
 
 <h2>Collection of Component Files used:</h2>
 
-   * Component: ARM::CMSIS:CORE:3.40.0
-      Source file:   CMSIS\UserCodeTemplates\ARM\ITM_Retarget.c
+   * Component: ARM::CMSIS:CORE:5.0.0
 
-   * Component: Keil::Device:Startup:1.0.0
+   * Component: Keil::Device:Startup:2.5.0
       Source file:   Device\Source\ARM\startup_MKL25Z4.s
       Source file:   Device\Source\system_MKL25Z4.c
+      Include file:  Device\Source\system_MKL25Z4.h
+Build Time Elapsed:  00:00:01
 </pre>
 </body>
 </html>

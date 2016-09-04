@@ -18,6 +18,16 @@
 #define 	READ_BURST      		0xC0						//read burst
 #define 	BYTES_IN_RXFIFO     0x7F  					//byte number in RXfifo
 
+#define RADIO_BURST_ACCESS   0x40
+#define RADIO_SINGLE_ACCESS  0x00
+#define RADIO_READ_ACCESS    0x80
+#define RADIO_WRITE_ACCESS   0x00
+
+/* Bit fields in the chip status byte */
+#define STATUS_CHIP_RDYn_BM             0x80
+#define STATUS_STATE_BM                 0x70
+#define STATUS_FIFO_BYTES_AVAILABLE_BM  0x0F
+
 
 
 /**********************************************************************
@@ -186,7 +196,6 @@ void TI_Init(void)
 	
 }
 
-
 /**********************************************************************
 ***********							 TI_Write							*************************
 ***********************************************************************	
@@ -196,11 +205,11 @@ void TI_Init(void)
 void TI_WriteByte( char addr,  char data)
 {
 //int dly;
-  SpiStart();																										//Start SPI by CSn Low
-	wait_CHIP_RDYn; 																								//Wait for TI's christal to be stabilized
-	SPI_Send(addr);																							  // Send 1 byte addr and write command
-	SPI_Send(data);																								// Send 1 byte data 
-	SpiStop();	                               											//Stop SPI by CSn High
+//  SpiStart();																										//Start SPI by CSn Low
+//	wait_CHIP_RDYn; 																							//Wait for TI's christal to be stabilized
+	SPI_Send(addr);																							  //Send 1 byte addr and write command
+	SPI_Send(data);																								//Send 1 byte data 
+//	SpiStop();	                               										//Stop SPI by CSn High
 }
 
 /**********************************************************************
@@ -213,11 +222,11 @@ char TI_ReadByte(char addr)
 {
   char data = 0;
 	
-	SpiStart();																										//Start SPI by CSn Low
-	wait_CHIP_RDYn; 																								//Wait for TI's christal to be stabilized
-	SPI_Send( READ_SINGLE | addr);																  // R/w bit (1) + Burst bit (0)+ 6 bit addres
+//	SpiStart();																										//Start SPI by CSn Low
+//	wait_CHIP_RDYn; 																							//Wait for TI's christal to be stabilized
+	SPI_Send( READ_SINGLE | addr);																// R/w bit (1) + Burst bit (0)+ 6 bit addres
 	data = SPI_Send(0x00);             														// Data read (read 1byte data) via dummy write
-	SpiStop();																											//Stop SPI by CSn High
+//	SpiStop();																										//Stop SPI by CSn High
   return data;    
 }
 /**********************************************************************
@@ -230,8 +239,8 @@ int TI_Write_brst(int addr,char* buf,int len)
 {
   int i = 0;
 
-	SpiStart();					                             	  	//Start SPI by CSn Low
-	wait_CHIP_RDYn; 																			//Wait for TI's christal to be stabilized
+//	SpiStart();					                             	  	//Start SPI by CSn Low
+//	wait_CHIP_RDYn; 																			//Wait for TI's christal to be stabilized
 	SPI_Send ( WRITE_BURST | addr );											// Send the adrr
 		
 	for(i = 0; i < len; i++)              								// Burst Write the data 
@@ -239,10 +248,9 @@ int TI_Write_brst(int addr,char* buf,int len)
 			SPI_Send (buf[i]);
 		}
 	 
-	SpiStop();																						//Stop SPI by CSn High
+//	SpiStop();																						//Stop SPI by CSn High
 	return len;  
 }
-
 /**********************************************************************
 ***********							 TI_READ_brst							*********************
 ***********************************************************************	
@@ -253,14 +261,14 @@ int TI_Read_brst(int addr, char* buf,int len)
 {	
 	int i = 0;
 
-	SpiStart();					                             	  	//Start SPI by CSn Low
-	wait_CHIP_RDYn; 																			//Wait for TI's christal to be stabilized
+//	SpiStart();					                             	  	//Start SPI by CSn Low
+//	wait_CHIP_RDYn; 																			//Wait for TI's christal to be stabilized
 	SPI_Send ( READ_BURST | addr );												// Address byte 1
 	for(i = 0; i < len; i++)                    				  // Write data in loop
 		{
 			buf[i] = SPI_Send(0x00);													//write data to buffer with size of "len"
 		}
-	SpiStop();																						//Stop SPI by CSn High
+//	SpiStop();																						//Stop SPI by CSn High
 	return len;
 }
 
@@ -310,6 +318,127 @@ do
 //	__NOP();
 	} while(--t);
 	return 1;
+}
+/**********************************************************************
+***********							 trx16BitRegAccess							*******************
+***********************************************************************	
+	Aim  : TEST issue 
+	NOTE :
+**********************************************************************/
+static void trxReadWriteBurstSingle(uint8_t addr,char *pData,uint16_t len)
+{
+	uint16_t i;
+	/* Communicate len number of bytes: if RX - the procedure sends 0x00 to push bytes from slave*/
+  if(addr&RADIO_READ_ACCESS)
+  {
+    if(addr&RADIO_BURST_ACCESS)
+    {
+     TI_Read_brst(addr,pData,len);
+    }
+    else
+    {
+     TI_ReadByte(addr);
+    }
+  }
+  else
+  {
+    if(addr&RADIO_BURST_ACCESS)
+    {
+      /* Communicate len number of bytes: if TX - the procedure doesn't overwrite pData */
+      TI_Write_brst(addr,pData,len);
+    }
+    else
+    {
+      TI_WriteByte(addr,*pData);
+    }
+  }
+  return;
+}
+
+
+/**********************************************************************
+***********							 trx16BitRegAccess							*******************
+***********************************************************************	
+	Aim  : TEST issue 
+	NOTE :
+**********************************************************************/
+char trx16BitRegAccess(uint8_t accessType, uint8_t extAddr, uint8_t regAddr, char *pData, uint8_t len)
+{
+  uint8_t readValue;
+
+  SpiStart();					                             	  	//Start SPI by CSn Low
+  wait_CHIP_RDYn; 
+  /* send extended address byte with access type bits set */
+  SPI_Send(accessType|extAddr);
+  /* Storing chip status */
+  readValue = SPI_Send(0x00);
+  SPI_Send(regAddr);
+  /* Communicate len number of bytes */
+  trxReadWriteBurstSingle(accessType|extAddr,pData,len);
+  SpiStop();
+  /* return the status byte value */
+  return(readValue);
+}
+
+/**********************************************************************
+***********							 trx16BitRegAccess							*******************
+***********************************************************************	
+	Aim  : TEST issue 
+	NOTE :
+**********************************************************************/
+uint8_t trx8BitRegAccess(uint8_t accessType, uint8_t addrByte, char *pData, uint16_t len)
+{
+  uint8_t readValue;
+
+  /* Pull CS_N low and wait for SO to go low before communication starts */
+  SpiStart();
+  wait_CHIP_RDYn;
+  /* send register address byte */
+  SPI_Send(accessType|addrByte);
+  /* Storing chip status */
+  readValue = SPI_Send(0x00);
+  trxReadWriteBurstSingle(accessType|addrByte,pData,len);
+  SpiStop();
+  /* return the status byte value */
+  return(readValue);
+}
+
+/******************************************************************************
+ * @fn          cc112xSpiReadReg
+ *
+ * @brief       Read value(s) from config/status/extended radio register(s).
+ *              If len  = 1: Reads a single register
+ *              if len != 1: Reads len register values in burst mode 
+ *
+ * input parameters
+ *
+ * @param       addr   - address of first register to read
+ * @param       *pData - pointer to data array where read bytes are saved
+ * @param       len   - number of bytes to read
+ *
+ * output parameters
+ *
+ * @return      rfStatus_t
+ */
+uint8_t cc112xSpiReadReg(uint16_t addr, char *pData, uint8_t len)
+{
+  uint8_t tempExt  = (uint8_t)(addr>>8);
+  uint8_t tempAddr = (uint8_t)(addr & 0x00FF);
+  uint8_t rc;
+  
+  /* Checking if this is a FIFO access -> returns chip not ready  */
+  if((CC112X_SINGLE_TXFIFO<=tempAddr)&&(tempExt==0)) return STATUS_CHIP_RDYn_BM;
+  
+  /* Decide what register space is accessed */
+  if(!tempExt)
+  {
+    rc = trx8BitRegAccess((RADIO_BURST_ACCESS|RADIO_READ_ACCESS),tempAddr,pData,len);
+  }
+  else if (tempExt == 0x2F)
+  {
+    rc = trx16BitRegAccess((RADIO_BURST_ACCESS|RADIO_READ_ACCESS),tempExt,tempAddr,pData,len);
+  }
+  return (rc);
 }
 
 /**********************************************************************
@@ -481,7 +610,24 @@ void setRegisters(void)
 		config = 0x10; TI_Write_brst(CC112X_PKT_CFG2,&config,1);
 }
 
-
+/**********************************************************************
+***********							 Test Program						***********************
+***********************************************************************	
+	Aim  : Packet Test 
+	NOTE : message on the air (test)
+**********************************************************************/
+char buf[7];							//message buffer
+typedef  struct {
+	char Addr;
+	char Priority;
+	char Direction;
+	char RSSI;
+	char WakeUpTime;
+	char Temperature;
+	char AlarmFlags;
+	}MSG;
+	
+  MSG* pMSG; 		//buffer pointer
 /**********************************************************************
 ***********							 Main Program						***********************
 ***********************************************************************	
@@ -506,6 +652,7 @@ int main (void)
 //		TI_HW_Reset();
 //	Delay(0x3000);													//delay for logic analyzer
 	hede=PTD->PDIR;
+	
 //	SpiStart();	
 //	SPI_Send(0x10);
 //	SpiStop();
@@ -514,7 +661,18 @@ int main (void)
 //		test[2]=TI_ReadByte(0x0F);
 //		test[3]=TI_ReadByte(0x0F);
 //		test[4]=TI_ReadByte(0x0F);
-//		
+/**********************************************************************
+***********							 Test Area					***********************
+***********************************************************************/
+	pMSG = (MSG*)buf;            //buffer selection
+	pMSG->Addr = 0xAB;
+	pMSG->Priority = 0x01;
+	pMSG->Direction = 0x02;
+	pMSG->RSSI = 0xDF;
+	pMSG->WakeUpTime = 0x11;
+	pMSG->Temperature = 0x23;
+	pMSG->AlarmFlags = 0xCC;
+	
 //	TI_WriteByte(CC112X_IOCFG3,0x87);
 //	test[5]=TI_ReadByte(CC112X_IOCFG3);
 //	TI_Command(CC112X_SRES);				//sofware reset 

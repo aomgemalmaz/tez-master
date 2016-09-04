@@ -10,6 +10,11 @@
 #ifndef RTE_COMPONENTS_H
 #define RTE_COMPONENTS_H
 
-#define RTE_DEVICE_STARTUP_KLxx    /* Device Startup for KLxx */
+
+/*
+ * Define the Device Header File: 
+ */
+#define CMSIS_device_header "MKL25Z4.h"
+
 
 #endif /* RTE_COMPONENTS_H */
