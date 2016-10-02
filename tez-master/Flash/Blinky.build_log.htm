@@ -17,26 +17,28 @@ Library Manager: ArmAr.exe V5.06 update 2 (build 183)
 Hex Converter:   FromElf.exe V5.06 update 2 (build 183)
 CPU DLL:         SARMCM3.DLL V5.20
 Dialog DLL:      DARMCM1.DLL V1.14.0.0
-Target DLL:      CMSIS_AGDI.dll V1.25.20.0
+Target DLL:      PEMicro\Pemicro_ArmCortexInterface.dll V1.11
 Dialog DLL:      TARMCM1.DLL V1.10.0.0
  
 <h2>Project:</h2>
 C:\Users\PC1\Desktop\tez-master\tez-master\Blinky.uvprojx
-Project File Date:  06/26/2016
+Project File Date:  09/14/2016
 
 <h2>Output:</h2>
 *** Using Compiler 'V5.06 update 2 (build 183)', folder: 'C:\Keil_v5\ARM\ARMCC\Bin'
 Rebuild target 'CMSIS-DAP'
 assembling startup_MKL25Z4.s...
-compiling system_MKL25Z4.c...
+compiling TIspi.c...
+TIspi.c(9): warning:  #1-D: last line of file ends without a newline
+  //uint8_t cc112xSpiReadReg(uint16_t addr, char *pData, uint8_t len)	;
+TIspi.c: 1 warning, 0 errors
 compiling Blinky.c...
-Blinky.c(330): warning:  #177-D: variable "i" was declared but never referenced
-  	uint16_t i;
-Blinky.c(454): warning:  #177-D: variable "marcStatus" was declared but never referenced
+Blinky.c(513): warning:  #177-D: variable "marcStatus" was declared but never referenced
   	char marcStatus;
-Blinky.c: 2 warnings, 0 errors
+Blinky.c: 1 warning, 0 errors
+compiling system_MKL25Z4.c...
 linking...
-Program Size: Code=11460 RO-data=500 RW-data=56 ZI-data=496  
+Program Size: Code=11572 RO-data=500 RW-data=56 ZI-data=496  
 ".\Flash\Blinky.axf" - 0 Error(s), 2 Warning(s).
 
 <h2>Software Packages used:</h2>
@@ -67,7 +69,7 @@ Package Vendor: Keil
       Source file:   Device\Source\ARM\startup_MKL25Z4.s
       Source file:   Device\Source\system_MKL25Z4.c
       Include file:  Device\Source\system_MKL25Z4.h
-Build Time Elapsed:  00:00:01
+Build Time Elapsed:  00:00:03
 </pre>
 </body>
 </html>

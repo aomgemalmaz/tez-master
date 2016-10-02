@@ -327,7 +327,7 @@ do
 **********************************************************************/
 static void trxReadWriteBurstSingle(uint8_t addr,char *pData,uint16_t len)
 {
-	uint16_t i;
+	
 	/* Communicate len number of bytes: if RX - the procedure sends 0x00 to push bytes from slave*/
   if(addr&RADIO_READ_ACCESS)
   {
@@ -369,9 +369,7 @@ char trx16BitRegAccess(uint8_t accessType, uint8_t extAddr, uint8_t regAddr, cha
   SpiStart();					                             	  	//Start SPI by CSn Low
   wait_CHIP_RDYn; 
   /* send extended address byte with access type bits set */
-  SPI_Send(accessType|extAddr);
-  /* Storing chip status */
-  readValue = SPI_Send(0x00);
+  readValue =SPI_Send(accessType|extAddr); //Storing chip status */
   SPI_Send(regAddr);
   /* Communicate len number of bytes */
   trxReadWriteBurstSingle(accessType|extAddr,pData,len);
@@ -394,9 +392,7 @@ uint8_t trx8BitRegAccess(uint8_t accessType, uint8_t addrByte, char *pData, uint
   SpiStart();
   wait_CHIP_RDYn;
   /* send register address byte */
-  SPI_Send(accessType|addrByte);
-  /* Storing chip status */
-  readValue = SPI_Send(0x00);
+  readValue = SPI_Send(accessType|addrByte);  /* Storing chip status */
   trxReadWriteBurstSingle(accessType|addrByte,pData,len);
   SpiStop();
   /* return the status byte value */
@@ -437,6 +433,69 @@ uint8_t cc112xSpiReadReg(uint16_t addr, char *pData, uint8_t len)
   else if (tempExt == 0x2F)
   {
     rc = trx16BitRegAccess((RADIO_BURST_ACCESS|RADIO_READ_ACCESS),tempExt,tempAddr,pData,len);
+  }
+  return (rc);
+}
+
+/*******************************************************************************
+ * @fn          trxSpiCmdStrobe
+ *
+ * @brief       Send command strobe to the radio. Returns status byte read
+ *              during transfer of command strobe. Validation of provided
+ *              is not done. Function assumes chip is ready.
+ *
+ * input parameters
+ *
+ * @param       cmd - command strobe
+ *
+ * output parameters
+ *
+ * @return      status byte
+ */
+uint8_t trxSpiCmdStrobe(uint8_t cmd)
+{
+    uint8_t rc;
+    SpiStart();
+		wait_CHIP_RDYn;
+    rc = SPI_Send(cmd);
+    SpiStop();
+    return(rc);
+}
+
+/******************************************************************************
+ * @fn          cc112xSpiWriteReg
+ *
+ * @brief       Write value(s) to config/status/extended radio register(s).
+ *              If len  = 1: Writes a single register
+ *              if len  > 1: Writes len register values in burst mode 
+ *
+ * input parameters
+ *
+ * @param       addr   - address of first register to write
+ * @param       *pData - pointer to data array that holds bytes to be written
+ * @param       len    - number of bytes to write
+ *
+ * output parameters
+ *
+ * @return      rfStatus_t
+ */
+uint8_t cc112xSpiWriteReg(uint16_t addr, char *pData, uint8_t len)
+{
+  uint8_t tempExt  = (uint8_t)(addr>>8);
+  uint8_t tempAddr = (uint8_t)(addr & 0x00FF);
+  uint8_t rc;
+  
+  /* Checking if this is a FIFO access -> returns chip not ready  */
+  if((CC112X_SINGLE_TXFIFO<=tempAddr)&&(tempExt==0)) return STATUS_CHIP_RDYn_BM;
+  
+  /* Decide what register space is accessed */
+  if(!tempExt)
+  {
+    rc = trx8BitRegAccess((RADIO_BURST_ACCESS|RADIO_WRITE_ACCESS),tempAddr,pData,len);
+  }
+  else if (tempExt == 0x2F)
+  {
+    rc = trx16BitRegAccess((RADIO_BURST_ACCESS|RADIO_WRITE_ACCESS),tempExt,tempAddr,pData,len);
   }
   return (rc);
 }

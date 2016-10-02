@@ -387,6 +387,11 @@
               <FileType>5</FileType>
               <FilePath>.\TIspi.h</FilePath>
             </File>
+            <File>
+              <FileName>TIspi.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\TIspi.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -784,6 +789,11 @@
               <FileName>TIspi.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\TIspi.h</FilePath>
+            </File>
+            <File>
+              <FileName>TIspi.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\TIspi.c</FilePath>
             </File>
           </Files>
         </Group>
