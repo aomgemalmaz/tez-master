@@ -29,16 +29,16 @@ Project File Date:  09/14/2016
 Rebuild target 'CMSIS-DAP'
 assembling startup_MKL25Z4.s...
 compiling TIspi.c...
-TIspi.c(9): warning:  #1-D: last line of file ends without a newline
-  //uint8_t cc112xSpiReadReg(uint16_t addr, char *pData, uint8_t len)	;
-TIspi.c: 1 warning, 0 errors
-compiling Blinky.c...
-Blinky.c(513): warning:  #177-D: variable "marcStatus" was declared but never referenced
-  	char marcStatus;
-Blinky.c: 1 warning, 0 errors
 compiling system_MKL25Z4.c...
+compiling Blinky.c...
+Blinky.c(577): warning:  #167-D: argument of type "uint8_t *" is incompatible with parameter of type "char *"
+  cc112xSpiWriteTxFifo(txBuffer,sizeof(txBuffer));
+Blinky.c(793): warning:  #167-D: argument of type "uint8_t *" is incompatible with parameter of type "char *"
+  		toto[1] = cc112xSpiWriteReg( 
+C112X_IF_ADC1, &writeByte, 1); //Tempsens settings, bit 6 high
+Blinky.c: 2 warnings, 0 errors
 linking...
-Program Size: Code=11572 RO-data=500 RW-data=56 ZI-data=496  
+Program Size: Code=11752 RO-data=496 RW-data=60 ZI-data=500  
 ".\Flash\Blinky.axf" - 0 Error(s), 2 Warning(s).
 
 <h2>Software Packages used:</h2>
@@ -66,10 +66,10 @@ Package Vendor: Keil
    * Component: ARM::CMSIS:CORE:5.0.0
 
    * Component: Keil::Device:Startup:2.5.0
-      Source file:   Device\Source\ARM\startup_MKL25Z4.s
       Source file:   Device\Source\system_MKL25Z4.c
+      Source file:   Device\Source\ARM\startup_MKL25Z4.s
       Include file:  Device\Source\system_MKL25Z4.h
-Build Time Elapsed:  00:00:03
+Build Time Elapsed:  00:00:01
 </pre>
 </body>
 </html>

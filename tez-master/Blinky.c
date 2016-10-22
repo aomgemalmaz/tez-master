@@ -148,6 +148,10 @@ void LED_Init(void) {
 		
 
 	}
+	// TEST macros
+#define TRXEM_SPI_TX(x) 	SPI1->D = x
+#define TRXEM_SPI_RX()		SPI1->D
+#define TRXEM_SPI_WAIT_DONE()		(while(!(SPI_S_SPTEF_MASK & SPI1->S) || (SPI_S_SPRF_MASK & SPI1->S) );)
 /**********************************************************************
 ***********							 SPI_SEND							*************************
 ***********************************************************************	
@@ -224,7 +228,7 @@ char TI_ReadByte(char addr)
 	
 //	SpiStart();																										//Start SPI by CSn Low
 //	wait_CHIP_RDYn; 																							//Wait for TI's christal to be stabilized
-	SPI_Send( READ_SINGLE | addr);																// R/w bit (1) + Burst bit (0)+ 6 bit addres
+	//SPI_Send( READ_SINGLE | addr);																// R/w bit (1) + Burst bit (0)+ 6 bit addres
 	data = SPI_Send(0x00);             														// Data read (read 1byte data) via dummy write
 //	SpiStop();																										//Stop SPI by CSn High
   return data;    
@@ -241,7 +245,7 @@ int TI_Write_brst(int addr,char* buf,int len)
 
 //	SpiStart();					                             	  	//Start SPI by CSn Low
 //	wait_CHIP_RDYn; 																			//Wait for TI's christal to be stabilized
-	SPI_Send ( WRITE_BURST | addr );											// Send the adrr
+	//SPI_Send ( WRITE_BURST | addr );											// Send the adrr
 		
 	for(i = 0; i < len; i++)              								// Burst Write the data 
 		{
@@ -263,7 +267,7 @@ int TI_Read_brst(int addr, char* buf,int len)
 
 //	SpiStart();					                             	  	//Start SPI by CSn Low
 //	wait_CHIP_RDYn; 																			//Wait for TI's christal to be stabilized
-	SPI_Send ( READ_BURST | addr );												// Address byte 1
+	//SPI_Send ( READ_BURST | addr );			 test									// Address byte 1
 	for(i = 0; i < len; i++)                    				  // Write data in loop
 		{
 			buf[i] = SPI_Send(0x00);													//write data to buffer with size of "len"
@@ -320,7 +324,7 @@ do
 	return 1;
 }
 /**********************************************************************
-***********							 trx16BitRegAccess							*******************
+***********							 trxReadWriteBurstSingle							*******************
 ***********************************************************************	
 	Aim  : TEST issue 
 	NOTE :
@@ -379,7 +383,7 @@ char trx16BitRegAccess(uint8_t accessType, uint8_t extAddr, uint8_t regAddr, cha
 }
 
 /**********************************************************************
-***********							 trx16BitRegAccess							*******************
+***********							 trx8BitRegAccess							*******************
 ***********************************************************************	
 	Aim  : TEST issue 
 	NOTE :
@@ -393,7 +397,11 @@ uint8_t trx8BitRegAccess(uint8_t accessType, uint8_t addrByte, char *pData, uint
   wait_CHIP_RDYn;
   /* send register address byte */
   readValue = SPI_Send(accessType|addrByte);  /* Storing chip status */
-  trxReadWriteBurstSingle(accessType|addrByte,pData,len);
+//  while(!(SPI_S_SPTEF_MASK & SPI1->S));   
+//	SPI1->D = (accessType|addrByte);																								//Write Data
+//	while(!(SPI_S_SPRF_MASK & SPI1->S)); 
+//	readValue = SPI1->D;
+	trxReadWriteBurstSingle(accessType|addrByte,pData,len);
   SpiStop();
   /* return the status byte value */
   return(readValue);
@@ -499,87 +507,109 @@ uint8_t cc112xSpiWriteReg(uint16_t addr, char *pData, uint8_t len)
   }
   return (rc);
 }
-
+/*******************************************************************************
+ * @fn          cc112xSpiWriteTxFifo
+ *
+ * @brief       Write pData to radio transmit FIFO.
+ *
+ * input parameters
+ *
+ * @param       *pData - pointer to data array that is written to TX FIFO
+ * @param       len    - Length of data array to be written
+ *
+ * output parameters
+ *
+ * @return      rfStatus_t
+ */
+uint8_t cc112xSpiWriteTxFifo(char *pData, uint8_t len)
+{
+  uint8_t rc;
+  rc = trx8BitRegAccess(0x00,CC112X_BURST_TXFIFO, pData, len);
+  return (rc);
+}
 /**********************************************************************
 ***********							Read Temp Sensor						*********************
 ***********************************************************************	
 	Aim  : temp sensor digital readout
 	NOTE : see DN-403 Application note!!!
 **********************************************************************/
-int8_t getCelcius(void)
-{
-	//Variables
-	char RegValue = 0;
-	char marcStatus;
-	char writeByte;
-	uint32_t ADCValue_I = 0;
-	int8_t celsius = 0;
+static int8_t tempRead(void) {
+//Variables
+char RegValue = 0;
+char marcStatus;
+char writeByte;
+int ADCValue_I = 0;
+char celsius = 0;
 //String to put radio in debug mode
-	char txBuffer[18] =
-	{0x0F,0x28,0x02,0x90,0x42,0x1B,0x7E,0x1F,0xFE,0xCD,0x06,0x1B,0x0E,0xA1,0x0E,0xA4,0x00,0x3F};
-	
-	//Constants for temperature calculation (for 3V input!!!)
-	float a = -3.3;
-	float b = 992;
-	float c = -2629.9;
-	
-	//temp sensor digital readout
-	TI_WriteByte(CC112X_DCFILT_CFG,0x40);
-	TI_WriteByte(CC112X_MDMCFG1 ,0x47);
-	TI_WriteByte(CC112X_CHAN_BW,0x81);
-	TI_WriteByte(CC112X_FREQ_IF_CFG,0x00);
-	config = 0x2A; TI_Write_brst(CC112X_ATEST,&config,1);
-	config = 0x07; TI_Write_brst(CC112X_ATEST_MODE,&config,1);
-	config = 0x07; TI_Write_brst(CC112X_GBIAS1,&config,1);
-	config = 0x01; TI_Write_brst(CC112X_PA_IFAMP_TEST,&config,1);
-	
-	TI_Command(CC112X_SRX);
-	Delay(100);
-//	TI_Command(CC112X_SNOP);
-//	test[0] = SPI_Send(0x00);
-	
-	//Read marcstate and wait until chip is in RX
-//	do {
-//	TI_Read_brst(CC112X_MARCSTATE, &marcStatus, 1);
-//	} while (marcStatus != 0x6D);
-	
-	// NOTE!!!!->set radio to debug mode to turn IFAMP off and read CHFILTreg
-	
-	// ***** Set radio in debug mode ***** 
+uint8_t txBuffer[18] =
+{0x0F,0x28,0x02,0x90,0x42,0x1B,0x7E,0x1F,0xFE,0xCD,0x06,0x1B,0x0E,0xA1,0x0E,0xA4,0x00,0x3F};
+//Constants for temperature calculation
+float a = -3.3;
+float b = 1000;
+float c =-2629.9;
+//Register settings specific for temp readout.
+writeByte = 0x40;
+cc112xSpiWriteReg( CC112X_DCFILT_CFG, &writeByte, 1); //Tempsens settings, bit 6 high
+writeByte = 0x47;
+cc112xSpiWriteReg( CC112X_MDMCFG1, &writeByte, 1); //Tempsens settings, single ADC, I channel
+writeByte = 0x81;
+cc112xSpiWriteReg( CC112X_CHAN_BW, &writeByte, 1); //Tempsens settings, bit 7 high Bypass ch filt.
+writeByte = 0x00;
+cc112xSpiWriteReg( CC112X_FREQ_IF_CFG, &writeByte, 1); //Tempsens settings, 0-IF
+writeByte = 0x2A;
+cc112xSpiWriteReg( CC112X_ATEST, &writeByte, 1); //Tempsens settings
+writeByte = 0x07;
+cc112xSpiWriteReg( CC112X_ATEST_MODE, &writeByte, 1); //Tempsens settings
+writeByte = 0x07;
+cc112xSpiWriteReg( CC112X_GBIAS1, &writeByte, 1); //Tempsens settings
+writeByte = 0x01;
+cc112xSpiWriteReg( CC112X_PA_IFAMP_TEST, &writeByte, 1); //Tempsens settings
+//Set chip in RX
+trxSpiCmdStrobe(CC112X_SRX);
+//Read marcstate and wait until chip is in RX
+do {
+cc112xSpiReadReg(CC112X_MARCSTATE, &marcStatus, 1);
+} while (marcStatus != 0x6D);
 
-	TI_Write_brst(CC112X_BURST_RXFIFO,txBuffer,sizeof(txBuffer)); 	// Write debug init to tx fifo
-	
-	writeByte=0x01; TI_Write_brst( CC112X_BIST, &writeByte, 1);  // Run code from FIFO
-	
-	TI_Command(CC112X_SIDLE);  // Strobe IDLE
-	
 
-	writeByte=0x1F;
-	TI_WriteByte( CC112X_WOR_EVENT0_LSB, 0x1F); 	// Set IF AMP in PD
+//#### Set radio in debug mode ####
+// Write debug init to tx fifo
+cc112xSpiWriteTxFifo(txBuffer,sizeof(txBuffer));
+// Run code from FIFO
+writeByte=0x01;
+cc112xSpiWriteReg(CC112X_BIST, &writeByte, 1);
+// Strobe IDLE
+trxSpiCmdStrobe(CC112X_SIDLE);
+// Set IF AMP in PD
+writeByte=0x1F;
+cc112xSpiWriteReg( CC112X_WOR_EVENT0_LSB, &writeByte, 1);
+// Strobe SXOFF to copy command over
+trxSpiCmdStrobe(CC112X_SXOFF);
+//#### Radio in Debug Mode ####
+
+
+
+//Wait until channel filter data is valid
+do {
+cc112xSpiReadReg(CC112X_CHFILT_I2, &RegValue, 1);
+} while (!RegValue&0x08);
+//Read ADC value from CHFILT_I registers
+cc112xSpiReadReg(CC112X_CHFILT_I2, &RegValue, 1);
+ADCValue_I = ((uint32_t)RegValue) << 16;
+cc112xSpiReadReg(CC112X_CHFILT_I1, &RegValue, 1);
+ADCValue_I |= (((uint32_t)RegValue) << 8) & 0x0000FF00;
+cc112xSpiReadReg(CC112X_CHFILT_I0, &RegValue, 1);
+ADCValue_I |= (uint32_t)(RegValue) & 0x000000FF;
+//Convert ADV value to celsius
+celsius = (int) ( (-b+sqrt(pow(b,2)-(4*a*(c-ADCValue_I)) ) ) / (2*a));
+celsius = celsius * 1.4;
+//Return degrees celsius
+return celsius;
+}
+
+
+
 	
-	TI_Command(CC112X_SXOFF); // Strobe SXOFF to copy command over
-	// ***** Set radio in debug mode END *****
-	
-		
-	//Wait until channel filter data is valid
-	do {
-	TI_Read_brst(CC112X_CHFILT_I2, &RegValue, 1);
-	} while (!RegValue&0x08);
-	//Read ADC value from CHFILT_I registers
-	TI_Read_brst(CC112X_CHFILT_I2, &RegValue, 1);
-	ADCValue_I = ((uint32_t)RegValue) << 16;
-	
-	TI_Read_brst(CC112X_CHFILT_I1, &RegValue, 1);
-	ADCValue_I |= (((uint32_t)RegValue) << 8) & 0x0000FF00;
-	
-	TI_Read_brst(CC112X_CHFILT_I0, &RegValue, 1);
-	ADCValue_I |= (uint32_t)(RegValue) & 0x000000FF;
-	
-	celsius = (int) ( (-b+sqrt(pow(b,2)-(4*a*(c-ADCValue_I)) ) ) / (2*a)); //Convert ADV value to celsius
-	//Return degrees celsius
-	return celsius;
- 
-}	
 /**********************************************************************
 ***********							 getRegisters									*****************
 ***********************************************************************	
@@ -687,6 +717,8 @@ typedef  struct {
 	}MSG;
 	
   MSG* pMSG; 		//buffer pointer
+	uint8_t writeByte;
+	char testo;
 /**********************************************************************
 ***********							 Main Program						***********************
 ***********************************************************************	
@@ -740,25 +772,33 @@ int main (void)
 //	TI_WriteByte(CC112X_IOCFG3,0x87);
 //	test[7]=TI_ReadByte(CC112X_IOCFG3);
 //	
-	TI_Write_brst(CC112X_BURST_TXFIFO,toto,20);
-	Delay(100);
-	TI_Read_brst(CC112X_RSSI1,got,1);
+//	TI_Write_brst(CC112X_BURST_TXFIFO,toto,20);
+//	Delay(100);
+//	TI_Read_brst(CC112X_RSSI1,got,1);
 	
 //Delay(100);
 //TI_Command(CC112X_SRES);				//sofware reset 
 	
-	setRegisters();
-	getReg_Test();
+//	setRegisters();
+//	getReg_Test();
 //		TI_WriteByte(CC112X_DCFILT_CFG,0x40);
 //		TI_WriteByte(CC112X_IOCFG2, 0x06);
 //		TI_WriteByte(CC112X_IOCFG1, 0xB0);
 //		TI_WriteByte(CC112X_IOCFG0, 0x40);
 	
-	test[0] = getCelcius();	 //Read temp sensor TEST			
-	
-
-	
+//	test[0] = getCelcius();	 //Read temp sensor TEST			
+//	
+		writeByte = 0x40;
+		toto[0] = cc112xSpiReadReg( CC112X_IF_ADC1,&testo, 1);
+		toto[1] = cc112xSpiWriteReg( CC112X_IF_ADC1, &writeByte, 1); //Tempsens settings, bit 6 high
+		toto[2] = cc112xSpiReadReg( CC112X_IF_ADC1,&testo, 1);
+		trxSpiCmdStrobe(CC112X_SRES);
+		toto[3] = cc112xSpiReadReg( CC112X_IF_ADC1,&testo, 1);
+		
 //	Delay(0x2000);
+
+	writeByte = tempRead(); // TEST read temperature from CC1120
+	
 	while(1)
 	{
 		// Turn on leds 1 by 1 
