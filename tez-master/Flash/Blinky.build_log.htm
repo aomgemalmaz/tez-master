@@ -31,15 +31,18 @@ assembling startup_MKL25Z4.s...
 compiling TIspi.c...
 compiling system_MKL25Z4.c...
 compiling Blinky.c...
-Blinky.c(577): warning:  #167-D: argument of type "uint8_t *" is incompatible with parameter of type "char *"
-  cc112xSpiWriteTxFifo(txBuffer,sizeof(txBuffer));
-Blinky.c(793): warning:  #167-D: argument of type "uint8_t *" is incompatible with parameter of type "char *"
-  		toto[1] = cc112xSpiWriteReg( 
-C112X_IF_ADC1, &writeByte, 1); //Tempsens settings, bit 6 high
-Blinky.c: 2 warnings, 0 errors
+Blinky.c(737): warning:  #177-D: function "runRX" was declared but never referenced
+  static void runRX(void) 
+Blinky.c(931): warning:  #177-D: function "runTX" was declared but never referenced
+  static void runTX(void) 
+Blinky.c(1016): warning:  #177-D: function "tempRead" was declared but never referenced
+  static int8_t tempRead(void) {
+Blinky.c(1100): warning:  #177-D: function "registerConfig" was declared but never referenced
+  static void registerConfig(void) 
+Blinky.c: 4 warnings, 0 errors
 linking...
-Program Size: Code=11752 RO-data=496 RW-data=60 ZI-data=500  
-".\Flash\Blinky.axf" - 0 Error(s), 2 Warning(s).
+Program Size: Code=13388 RO-data=660 RW-data=76 ZI-data=596  
+".\Flash\Blinky.axf" - 0 Error(s), 4 Warning(s).
 
 <h2>Software Packages used:</h2>
 
@@ -67,8 +70,8 @@ Package Vendor: Keil
 
    * Component: Keil::Device:Startup:2.5.0
       Source file:   Device\Source\system_MKL25Z4.c
-      Source file:   Device\Source\ARM\startup_MKL25Z4.s
       Include file:  Device\Source\system_MKL25Z4.h
+      Source file:   Device\Source\ARM\startup_MKL25Z4.s
 Build Time Elapsed:  00:00:01
 </pre>
 </body>

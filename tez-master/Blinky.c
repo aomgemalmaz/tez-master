@@ -8,6 +8,10 @@
  *      Copyright (c) 2006-2014 KEIL - An ARM Company. All rights reserved.
  *---------------------------------------------------------------------------*/
 
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
 #include "MKL25Z4.h"                    // Device header
 #include "TIspi.h"											//spi.h
 #include <math.h>
@@ -27,7 +31,10 @@
 #define STATUS_CHIP_RDYn_BM             0x80
 #define STATUS_STATE_BM                 0x70
 #define STATUS_FIFO_BYTES_AVAILABLE_BM  0x0F
-
+//CC1120 ISR Action definitions
+#define ISR_ACTION_REQUIRED     1
+#define ISR_IDLE                0
+#define RX_FIFO_ERROR       0x11
 
 
 /**********************************************************************
@@ -45,8 +52,12 @@
 #define YELLOW_OFF 	(FPTB->PSOR |= (1<<18),FPTB->PSOR |= (1<<19),(FPTD->PSOR  = 0x01))
 #define YELLOW_ON  	(FPTB->PCOR |= (1<<18),FPTB->PCOR |= (1<<19),(FPTD->PSOR  = 0x01))
 
-#define SpiStart()			FPTD->PCOR |= (1UL<<4);                             	// CS=low,  SPI start
-#define SpiStop()				FPTD->PSOR |= (1UL<<4);                             	// CS=high, SPI stop
+//#define SpiStart()			FPTD->PCOR |= (1UL<<4);                             	// CS=low,  SPI start
+//#define SpiStop()				FPTD->PSOR |= (1UL<<4);                             	// CS=high, SPI stop
+
+// test
+#define SpiStart()			FPTD->PCOR |= (1UL<<3);                             	// CS=low,  SPI start
+#define SpiStop()				FPTD->PSOR |= (1UL<<3);                             	// CS=high, SPI stop
 
 //#define SpiStart()			PTA->PCOR |= (1UL);                             	// CS=low,  SPI start
 //#define SpiStop()				PTA->PSOR |= (1UL);                             	// CS=high, SPI stop
@@ -66,6 +77,8 @@ uint32_t hede;
 char config;
 char toto[22]="AMK POKUMANI";
 char got[22];
+char packetSemaphore;
+int  packetCounter = 0;
 /**********************************************************************
 ***********							 Systick					  	*************************
 ***********************************************************************	
@@ -118,13 +131,17 @@ void LED_Init(void) {
 		
 		
 		//manual ss pin 
-		PORTD->PCR[4] |= PORT_PCR_MUX(1); 													//SS pin gpio
-		PTD->PDDR     |= (1UL<<4);																	//SS pin output PD4
+//		PORTD->PCR[4] |= PORT_PCR_MUX(1); 													//SS pin gpio
+//		PTD->PDDR     |= (1UL<<4);																	//SS pin output PD4
+		
+		PORTD->PCR[3] |= PORT_PCR_MUX(1); 													//SS pin gpio
+		PTD->PDDR     |= (1UL<<3);																	//SS pin output PD3
+		
 //		PORTA->PCR[1]   |= PORT_PCR_MUX(1); 
 //		PTA->PDDR   	  |= (1UL);																	
 		
 		PORTD->PCR[2] |= PORT_PCR_MUX(1); 													//TI_Reset pin gpio
-		PTD->PDDR     |= (1UL<<2);																	//TI_Reset pin output PD4
+		PTD->PDDR     |= (1UL<<2);																	//TI_Reset pin output PD2
 		
 		//PORTD->PCR[0] = PORT_PCR_MUX(0x2);           							//Set PTD4 to mux 2   (SS)
 		PORTD->PCR[5] = PORT_PCR_MUX(0x02);           							//Set PTD5 to mux 2   (clk)
@@ -133,10 +150,12 @@ void LED_Init(void) {
 		
 		SPI1->C1 = SPI_C1_MSTR_MASK;         											//Set SPI0 to Master   
 		SPI1->C2 = SPI_C2_MODFEN_MASK;                           	//Master SS pin acts as slave select output        
-//		SPI1->BR = (SPI_BR_SPPR(0x111) | SPI_BR_SPR(0x1000));     		//Set baud rate prescale divisor to 3 & set baud rate divisor to 32 for baud rate of 15625 hz        
+		//SPI1->BR = (SPI_BR_SPPR(0x111) | SPI_BR_SPR(0x0100));     		//Set baud rate prescale divisor to 3 & set baud rate divisor to 32 for baud rate of 15625 hz        
 //		SPI1->BR |= 0x30;
-			SPI1->BR |= 0x43;
-		
+			
+			
+			//SPI1->BR |= 0x43;
+			SPI1->BR |= 0x45; // test
 //		SPI1->C1 |=  (1UL << 3) ; 										//SPI MOD 3
 //		SPI1->C1 |=  (1UL << 2) ; 
 		
@@ -307,7 +326,7 @@ char TI_Command_Read(char command)
 	Aim  : Blind Delay
 	NOTE : microsecond delay (To be Calibrated)
 **********************************************************************/
-char DelayUs(long t)																
+char waitUs(long t)																
 {
 do
 	{
@@ -519,7 +538,7 @@ uint8_t cc112xSpiWriteReg(uint16_t addr, char *pData, uint8_t len)
  *
  * output parameters
  *
- * @return      rfStatus_t
+ * @return      rfStatus_t (uint8_t)
  */
 uint8_t cc112xSpiWriteTxFifo(char *pData, uint8_t len)
 {
@@ -527,6 +546,467 @@ uint8_t cc112xSpiWriteTxFifo(char *pData, uint8_t len)
   rc = trx8BitRegAccess(0x00,CC112X_BURST_TXFIFO, pData, len);
   return (rc);
 }
+/*******************************************************************************
+ * @fn          cc112xSpiReadRxFifo
+ *
+ * @brief       Reads RX FIFO values to pData array
+ *
+ * input parameters
+ *
+ * @param       *pData - pointer to data array where RX FIFO bytes are saved
+ * @param       len    - number of bytes to read from the RX FIFO
+ *
+ * output parameters
+ *
+ * @return      rfStatus_t
+ */
+uint8_t cc112xSpiReadRxFifo(char * pData, uint8_t len)
+{
+  uint8_t rc;
+  rc = trx8BitRegAccess(0x00,CC112X_BURST_RXFIFO, pData, len);
+  return (rc);
+}
+
+/******************************************************************************
+ * @fn      cc112xGetTxStatus(void)
+ *          
+ * @brief   This function transmits a No Operation Strobe (SNOP) to get the 
+ *          status of the radio and the number of free bytes in the TX FIFO.
+ *          
+ *          Status byte:
+ *          
+ *          ---------------------------------------------------------------------------
+ *          |          |            |                                                 |
+ *          | CHIP_RDY | STATE[2:0] | FIFO_BYTES_AVAILABLE (free bytes in the TX FIFO |
+ *          |          |            |                                                 |
+ *          ---------------------------------------------------------------------------
+ *
+ *
+ * input parameters
+ *
+ * @param   none
+ *
+ * output parameters
+ *         
+ * @return  rfStatus_t 
+ *
+ */
+uint8_t cc112xGetTxStatus(void)
+{
+    return(trxSpiCmdStrobe(CC112X_SNOP));
+}
+
+/******************************************************************************
+ *
+ *  @fn       cc112xGetRxStatus(void)
+ *
+ *  @brief   
+ *            This function transmits a No Operation Strobe (SNOP) with the 
+ *            read bit set to get the status of the radio and the number of 
+ *            available bytes in the RXFIFO.
+ *            
+ *            Status byte:
+ *            
+ *            --------------------------------------------------------------------------------
+ *            |          |            |                                                      |
+ *            | CHIP_RDY | STATE[2:0] | FIFO_BYTES_AVAILABLE (available bytes in the RX FIFO |
+ *            |          |            |                                                      |
+ *            --------------------------------------------------------------------------------
+ *
+ *
+ * input parameters
+ *
+ * @param     none
+ *
+ * output parameters
+ *         
+ * @return    rfStatus_t 
+ *
+ */
+uint8_t cc112xGetRxStatus(void)
+{
+    return(trxSpiCmdStrobe(CC112X_SNOP | RADIO_READ_ACCESS));
+}
+
+/*******************************************************************************
+*   @fn         manualCalibration
+*
+*   @brief      Calibrates radio according to CC112x errata
+*
+*   @param      none
+*
+*   @return     none
+*/
+#define VCDAC_START_OFFSET 2
+#define FS_VCO2_INDEX 0
+#define FS_VCO4_INDEX 1
+#define FS_CHP_INDEX 2
+
+static void RX_manualCalibration(void) {
+
+    char original_fs_cal2;
+    char calResults_for_vcdac_start_high[3];
+    char calResults_for_vcdac_start_mid[3];
+    char marcstate;
+    char writeByte;
+
+    // 1) Set VCO cap-array to 0 (FS_VCO2 = 0x00)
+    writeByte = 0x00;
+    cc112xSpiWriteReg(CC112X_FS_VCO2, &writeByte, 1);
+
+    // 2) Start with high VCDAC (original VCDAC_START + 2):
+    cc112xSpiReadReg(CC112X_FS_CAL2, &original_fs_cal2, 1);
+    writeByte = original_fs_cal2 + VCDAC_START_OFFSET;
+    cc112xSpiWriteReg(CC112X_FS_CAL2, &writeByte, 1);
+
+    // 3) Calibrate and wait for calibration to be done
+    //   (radio back in IDLE state)
+    trxSpiCmdStrobe(CC112X_SCAL);
+
+    do {
+        cc112xSpiReadReg(CC112X_MARCSTATE, &marcstate, 1);
+    } while (marcstate != 0x41);
+
+    // 4) Read FS_VCO2, FS_VCO4 and FS_CHP register obtained with
+    //    high VCDAC_START value
+    cc112xSpiReadReg(CC112X_FS_VCO2,
+                     &calResults_for_vcdac_start_high[FS_VCO2_INDEX], 1);
+    cc112xSpiReadReg(CC112X_FS_VCO4,
+                     &calResults_for_vcdac_start_high[FS_VCO4_INDEX], 1);
+    cc112xSpiReadReg(CC112X_FS_CHP,
+                     &calResults_for_vcdac_start_high[FS_CHP_INDEX], 1);
+
+    // 5) Set VCO cap-array to 0 (FS_VCO2 = 0x00)
+    writeByte = 0x00;
+    cc112xSpiWriteReg(CC112X_FS_VCO2, &writeByte, 1);
+
+    // 6) Continue with mid VCDAC (original VCDAC_START):
+    writeByte = original_fs_cal2;
+    cc112xSpiWriteReg(CC112X_FS_CAL2, &writeByte, 1);
+
+    // 7) Calibrate and wait for calibration to be done
+    //   (radio back in IDLE state)
+    trxSpiCmdStrobe(CC112X_SCAL);
+
+    do {
+        cc112xSpiReadReg(CC112X_MARCSTATE, &marcstate, 1);
+    } while (marcstate != 0x41);
+
+    // 8) Read FS_VCO2, FS_VCO4 and FS_CHP register obtained
+    //    with mid VCDAC_START value
+    cc112xSpiReadReg(CC112X_FS_VCO2,
+                     &calResults_for_vcdac_start_mid[FS_VCO2_INDEX], 1);
+    cc112xSpiReadReg(CC112X_FS_VCO4,
+                     &calResults_for_vcdac_start_mid[FS_VCO4_INDEX], 1);
+    cc112xSpiReadReg(CC112X_FS_CHP,
+                     &calResults_for_vcdac_start_mid[FS_CHP_INDEX], 1);
+
+    // 9) Write back highest FS_VCO2 and corresponding FS_VCO
+    //    and FS_CHP result
+    if (calResults_for_vcdac_start_high[FS_VCO2_INDEX] >
+        calResults_for_vcdac_start_mid[FS_VCO2_INDEX]) {
+        writeByte = calResults_for_vcdac_start_high[FS_VCO2_INDEX];
+        cc112xSpiWriteReg(CC112X_FS_VCO2, &writeByte, 1);
+        writeByte = calResults_for_vcdac_start_high[FS_VCO4_INDEX];
+        cc112xSpiWriteReg(CC112X_FS_VCO4, &writeByte, 1);
+        writeByte = calResults_for_vcdac_start_high[FS_CHP_INDEX];
+        cc112xSpiWriteReg(CC112X_FS_CHP, &writeByte, 1);
+    } else {
+        writeByte = calResults_for_vcdac_start_mid[FS_VCO2_INDEX];
+        cc112xSpiWriteReg(CC112X_FS_VCO2, &writeByte, 1);
+        writeByte = calResults_for_vcdac_start_mid[FS_VCO4_INDEX];
+        cc112xSpiWriteReg(CC112X_FS_VCO4, &writeByte, 1);
+        writeByte = calResults_for_vcdac_start_mid[FS_CHP_INDEX];
+        cc112xSpiWriteReg(CC112X_FS_CHP, &writeByte, 1);
+    }
+}
+
+/*******************************************************************************
+*   @fn         runRX
+*
+*   @brief      Puts radio in RX and waits for packets. Function assumes
+*               that status bytes are appended in the RX_FIFO
+*               Update packet counter and display for each packet received.
+*		
+*		@Note 			1. GPIO2 has to be set up with GPIO2_CFG = 0x06-->   PKT_SYNC_RXTX for correct interupt
+//              2. Packet engine has to be set up with status bytes enabled PKT_CFG1.APPEND_STATUS = 1
+*   @param      none
+*
+*   @return     none
+*********************************************************************************/
+static void runRX(void) 
+{
+	
+	char rxBuffer[128] = {0};
+  char rxBytes;
+  char marcState;
+	
+	// Calibrate radio according to errata
+  RX_manualCalibration();
+	
+	// Set radio in RX
+  trxSpiCmdStrobe(CC112X_SRX);
+	
+	// Wait for packet received interrupt
+	if(packetSemaphore == ISR_ACTION_REQUIRED) 
+		{
+			// Read number of bytes in RX FIFO
+			cc112xSpiReadReg(CC112X_NUM_RXBYTES, &rxBytes, 1);
+
+			// Check that we have bytes in FIFO
+			if(rxBytes != 0) 
+				{
+					// Read MARCSTATE to check for RX FIFO error
+					cc112xSpiReadReg(CC112X_MARCSTATE, &marcState, 1);
+
+					// Mask out MARCSTATE bits and check if we have a RX FIFO error
+					if((marcState & 0x1F) == RX_FIFO_ERROR) 
+						{
+						// Flush RX FIFO
+						trxSpiCmdStrobe(CC112X_SFRX);
+						} 
+						else 
+						{
+							// Read n bytes from RX FIFO
+							cc112xSpiReadRxFifo(rxBuffer, rxBytes);
+
+							// Check CRC ok (CRC_OK: bit7 in second status byte)
+							// This assumes status bytes are appended in RX_FIFO
+							// (PKT_CFG1.APPEND_STATUS = 1)
+							// If CRC is disabled the CRC_OK field will read 1
+							if(rxBuffer[rxBytes - 1] & 0x80) 
+								{
+									// Update packet counter
+									packetCounter++;
+								}
+						 }
+				 }
+				// Reset packet semaphore
+				packetSemaphore = ISR_IDLE;
+				// Set radio back in RX
+				trxSpiCmdStrobe(CC112X_SRX);
+    }
+}
+
+#define PKTLEN	30  // 1 < PKTLEN < 126
+
+#define GPIO3   0x04
+#define GPIO2   0x08
+#define GPIO0   0x80
+/*******************************************************************************
+*   @fn         createPacket
+*
+*   @brief      This function is called before a packet is transmitted. It fills
+*               the txBuffer with a packet consisting of a length byte, two
+*               bytes packet counter and n random bytes.
+*
+*               The packet format is as follows:
+*               |--------------------------------------------------------------|
+*               |           |           |           |         |       |        |
+*               | pktLength | pktCount1 | pktCount0 | rndData |.......| rndData|
+*               |           |           |           |         |       |        |
+*               |--------------------------------------------------------------|
+*                txBuffer[0] txBuffer[1] txBuffer[2]            txBuffer[PKTLEN]
+*
+*   @param       Pointer to start of txBuffer
+*
+*   @return      none
+*/
+static void createPacket(char txBuffer[]) 
+{
+	uint8_t i;
+  txBuffer[0] = PKTLEN;                           // Length byte
+  txBuffer[1] = (uint8_t) (packetCounter >> 8);     // MSB of packetCounter
+  txBuffer[2] = (uint8_t)  packetCounter;           // LSB of packetCounter
+
+    // Fill rest of buffer with random bytes
+  for(i = 3; i < (PKTLEN + 1); i++) 
+	{
+		txBuffer[i] = 0xAB;
+  }
+}
+/*******************************************************************************
+*   @fn         manualCalibration
+*
+*   @brief      Calibrates radio according to CC112x errata
+*
+*   @param      none
+*
+*   @return     none
+*/
+#define VCDAC_START_OFFSET 2
+#define FS_VCO2_INDEX 0
+#define FS_VCO4_INDEX 1
+#define FS_CHP_INDEX 2
+static void TX_manualCalibration(void) 
+{
+  char original_fs_cal2;
+  char calResults_for_vcdac_start_high[3];
+  char calResults_for_vcdac_start_mid[3];
+  char marcstate;
+  char writeByte;
+
+  // 1) Set VCO cap-array to 0 (FS_VCO2 = 0x00)
+  writeByte = 0x00;
+  cc112xSpiWriteReg(CC112X_FS_VCO2, &writeByte, 1);
+
+    // 2) Start with high VCDAC (original VCDAC_START + 2):
+    cc112xSpiReadReg(CC112X_FS_CAL2, &original_fs_cal2, 1);
+    writeByte = original_fs_cal2 + VCDAC_START_OFFSET;
+    cc112xSpiWriteReg(CC112X_FS_CAL2, &writeByte, 1);
+
+    // 3) Calibrate and wait for calibration to be done
+    //   (radio back in IDLE state)
+    trxSpiCmdStrobe(CC112X_SCAL);
+
+    do {
+        cc112xSpiReadReg(CC112X_MARCSTATE, &marcstate, 1);
+    } while (marcstate != 0x41);
+
+    // 4) Read FS_VCO2, FS_VCO4 and FS_CHP register obtained with 
+    //    high VCDAC_START value
+    cc112xSpiReadReg(CC112X_FS_VCO2,
+                     &calResults_for_vcdac_start_high[FS_VCO2_INDEX], 1);
+    cc112xSpiReadReg(CC112X_FS_VCO4,
+                     &calResults_for_vcdac_start_high[FS_VCO4_INDEX], 1);
+    cc112xSpiReadReg(CC112X_FS_CHP,
+                     &calResults_for_vcdac_start_high[FS_CHP_INDEX], 1);
+
+    // 5) Set VCO cap-array to 0 (FS_VCO2 = 0x00)
+    writeByte = 0x00;
+    cc112xSpiWriteReg(CC112X_FS_VCO2, &writeByte, 1);
+
+    // 6) Continue with mid VCDAC (original VCDAC_START):
+    writeByte = original_fs_cal2;
+    cc112xSpiWriteReg(CC112X_FS_CAL2, &writeByte, 1);
+
+    // 7) Calibrate and wait for calibration to be done
+    //   (radio back in IDLE state)
+    trxSpiCmdStrobe(CC112X_SCAL);
+
+    do {
+        cc112xSpiReadReg(CC112X_MARCSTATE, &marcstate, 1);
+    } while (marcstate != 0x41);
+
+    // 8) Read FS_VCO2, FS_VCO4 and FS_CHP register obtained 
+    //    with mid VCDAC_START value
+    cc112xSpiReadReg(CC112X_FS_VCO2, 
+                     &calResults_for_vcdac_start_mid[FS_VCO2_INDEX], 1);
+    cc112xSpiReadReg(CC112X_FS_VCO4,
+                     &calResults_for_vcdac_start_mid[FS_VCO4_INDEX], 1);
+    cc112xSpiReadReg(CC112X_FS_CHP,
+                     &calResults_for_vcdac_start_mid[FS_CHP_INDEX], 1);
+
+    // 9) Write back highest FS_VCO2 and corresponding FS_VCO
+    //    and FS_CHP result
+    if (calResults_for_vcdac_start_high[FS_VCO2_INDEX] >
+        calResults_for_vcdac_start_mid[FS_VCO2_INDEX]) {
+        writeByte = calResults_for_vcdac_start_high[FS_VCO2_INDEX];
+        cc112xSpiWriteReg(CC112X_FS_VCO2, &writeByte, 1);
+        writeByte = calResults_for_vcdac_start_high[FS_VCO4_INDEX];
+        cc112xSpiWriteReg(CC112X_FS_VCO4, &writeByte, 1);
+        writeByte = calResults_for_vcdac_start_high[FS_CHP_INDEX];
+        cc112xSpiWriteReg(CC112X_FS_CHP, &writeByte, 1);
+    } else {
+        writeByte = calResults_for_vcdac_start_mid[FS_VCO2_INDEX];
+        cc112xSpiWriteReg(CC112X_FS_VCO2, &writeByte, 1);
+        writeByte = calResults_for_vcdac_start_mid[FS_VCO4_INDEX];
+        cc112xSpiWriteReg(CC112X_FS_VCO4, &writeByte, 1);
+        writeByte = calResults_for_vcdac_start_mid[FS_CHP_INDEX];
+        cc112xSpiWriteReg(CC112X_FS_CHP, &writeByte, 1);
+    }
+}
+/*******************************************************************************
+*   @fn         runTX
+*
+*   @brief      Continuously sends packets on button push until button is pushed
+*               again. After the radio has gone into TX the function waits for
+*               interrupt that packet has been sent. Updates packet counter and
+*               display for each packet sent.
+*
+*   @param      none
+*
+*   @return    none
+*/
+static void runTX(void) 
+{
+	// Initialize packet buffer of size PKTLEN + 1
+  char txBuffer[PKTLEN+1] = {0};
+	
+	// Calibrate radio according to errata
+   TX_manualCalibration();
+
+	// Update packet counter
+  packetCounter++;
+
+  // Create a random packet with PKTLEN + 2 byte packet
+  // counter + n x random bytes
+  createPacket(txBuffer);
+
+  // Write packet to TX FIFO
+  cc112xSpiWriteTxFifo(txBuffer, sizeof(txBuffer));
+
+  // Strobe TX to send packet
+  trxSpiCmdStrobe(CC112X_STX);
+
+  // Wait for interrupt that packet has been sent.
+  // (Assumes the GPIO connected to the radioRxTxISR function is
+  // set to GPIOx_CFG = 0x06)
+  while(packetSemaphore != ISR_ACTION_REQUIRED);
+  // Clear semaphore flag
+  packetSemaphore = ISR_IDLE;
+ 
+}
+/*****************************************************************************************************/
+//									Initialize Interrupt for CC1120's GPIO-2 and if necessary GPIO-3
+
+/* -->  		PortD(4) connected to GPIO-2 of CC1120 for interrupt  */
+
+/*****************************************************************************************************/
+void IRQ_Init(void)
+{
+	
+//	PORTD->PCR[4] |=PORT_PCR_MUX(1);							//Port D-4 is GPIO
+	
+	
+	PORTD->PCR[4] |= PORT_PCR_MUX(1) | PORT_PCR_PE(1) | PORT_PCR_PS(1) | PORT_PCR_IRQC(0x0A); //PTD4 as GPIO, Pull up, interrupt on falling edge
+	PTD->PDDR     &= (0UL<<4);							  		//Port D-4 Input
+	
+//	PORTD->PCR[4] |= (1UL<< 19);		//IRQC = 1010
+//	PORTD->PCR[4] |= (1UL<< 17);		//IRQC= 1010   Interrupt @ falling edge
+//	PORTD->PCR[4] |= (1UL<< 8);		  //PCR mux 1 (GPIO)
+	
+	//Enable UART interrupt				
+	//NVIC_EnableIRQ(UART0_IRQn);
+	//NVIC_SetPriority(UART0_IRQn,1);
+	
+	//Enable PortD Hardware interrupt
+	
+	NVIC_EnableIRQ(PORTD_IRQn );							//Port D IRQ enable	
+	NVIC_SetPriority(PORTD_IRQn ,2);					//Port D IRQ priority 2
+//				NVIC_SetPriority(SysTick_IRQn ,2);				//SysTick Timer priority 
+	
+//					PORTD->PCR[4]= PORT_PCR_ISF_MASK | PORT_PCR_IRQC(10) ;
+////				PORTD->PCR[4]= PORT_PCR_IRQC(10) ;
+			
+}
+
+char asde;
+/*****************************************************************************************************/
+/*													Port D IRQ routine              																			   */
+/*****************************************************************************************************/		
+void PORTD_IRQHandler(void)
+{
+	/*
+		DO IRQ JOB here... Than do not forget to Clear the interrupt!!!!!!!!
+	*/
+	
+	packetSemaphore = ISR_ACTION_REQUIRED ;
+	
+	PORTD->PCR[4] |= PORT_PCR_ISF_MASK; 		// Clear ISF flag for clearing interrupt		
+	NVIC_ClearPendingIRQ(PORTD_IRQn );			// clear pending int from KL25
+}
+
 /**********************************************************************
 ***********							Read Temp Sensor						*********************
 ***********************************************************************	
@@ -541,7 +1021,7 @@ char writeByte;
 int ADCValue_I = 0;
 char celsius = 0;
 //String to put radio in debug mode
-uint8_t txBuffer[18] =
+char txBuffer[18] =
 {0x0F,0x28,0x02,0x90,0x42,0x1B,0x7E,0x1F,0xFE,0xCD,0x06,0x1B,0x0E,0xA1,0x0E,0xA4,0x00,0x3F};
 //Constants for temperature calculation
 float a = -3.3;
@@ -607,9 +1087,189 @@ celsius = celsius * 1.4;
 return celsius;
 }
 
+/*******************************************************************************
+*   @fn         registerConfig
+*
+*   @brief      Write register settings as given by SmartRF Studio found in
+*               cc112x_easy_link_reg_config.h
+*
+*   @param      none
+*
+*   @return     none
+*/
+static void registerConfig(void) 
+{
+    char writeByte;
+		uint16_t i ;
+    // Reset radio
+    trxSpiCmdStrobe(CC112X_SRES);
+    // Write registers to radio
+    for(i = 0; i < (sizeof(preferredSettings)/sizeof(registerSetting_t)); i++) 
+		{
+			writeByte = preferredSettings[i].data;
+      cc112xSpiWriteReg(preferredSettings[i].addr, &writeByte, 1);
+    }
+}
 
+
+uint16_t UART_baud;
+uint16_t divisor;
+#define UART_OSCERCLK   	8000000
+	/****************************************************************************************************/
+/* 													 UART Initialize Function   																			 		 	*/
+/****************************************************************************************************/
+void USART1_Init(uint16_t baud_rate)
+{
+	char osr=15;
+	UART_baud=baud_rate;
+
+	//This part will be added to GPIO Init function!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		// Select "Alt 2" usage to enable UART0 on pins
+	PORTA->PCR[1] = PORT_PCR_ISF_MASK|PORT_PCR_MUX(0x2);
+	PORTA->PCR[2] = PORT_PCR_ISF_MASK|PORT_PCR_MUX(0x2);
+	
+// Turn on clock to UART0 module and select 48Mhz clock (FLL/PLL source)
+  SIM->SCGC4 |= SIM_SCGC4_UART0_MASK;
+  SIM->SOPT2 &= ~SIM_SOPT2_UART0SRC_MASK;
+  SIM->SOPT2 |= SIM_SOPT2_UART0SRC(2);                 //OSCERCLK selected (8MHZ Cristal)
 
 	
+	UART0->C2 &= ~(UARTLP_C2_RE_MASK | UARTLP_C2_TE_MASK |UART0_C2_RIE_MASK); 
+
+  UART0->C2 = 0;						//disable uart 0 to change registers
+  UART0->C1 = 0;
+  UART0->C3 = 0;
+  UART0->S2 = 0;    
+		
+		// Set the baud rate divisor
+ 	divisor = (uint16_t)(UART_OSCERCLK / ((osr+1)* baud_rate));
+  UART0->C4 = osr;											//osr = 3
+  UART0->BDH = (divisor >> 8) & UARTLP_BDH_SBR_MASK;
+  UART0->BDL = (divisor & UARTLP_BDL_SBR_MASK);
+		
+	UART0->C1 |=UART0_C1_PE_MASK; 		// parity enable
+
+//	PTA->PCOR     |= (1UL<<5);										// Adm Recv ON && TX OFF
+		
+	UART0->C2 = UARTLP_C2_RE_MASK | UARTLP_C2_TE_MASK |UART0_C2_RIE_MASK;								// Enable Uart-0
+	
+	//Enable UART interrupt				
+	NVIC_EnableIRQ(UART0_IRQn);
+	NVIC_SetPriority(UART0_IRQn,1);
+	
+//			__asm ("cpsie i");
+		
+}
+/****************************************************************************************************/
+/*														   UART getCHAR																									      */
+/****************************************************************************************************/
+char UART_getchar(void )
+{
+//	PTA->PCOR     |= (1UL<<5);										// Adm Recv ON && TX OFF
+	while (!(UART0->S1 & UART0_S1_RDRF_MASK));   //  Wait until character has been received 
+	return UART0->D ;															//Recieve Char
+}
+/****************************************************************************************************/
+/*  															UART putCHAR        																	            */
+/****************************************************************************************************/
+char UART_putchar(char Udata )
+{
+//	PTA->PSOR     |= (1UL<<5);										// Adm Recv OFF && TX ON
+//	DelayUs(20);
+	/* Wait until space is available in the FIFO */
+	//while(!(UART0->S1 & UART0_S1_TDRE_MASK) && !(UART0->S1 & UART_S1_TC_MASK));
+	while(!(UART0->S1 & UART0_S1_TDRE_MASK));
+	UART0->D = Udata;
+//	Delay(1);
+	while(!(UART0->S1 & UART_S1_TC_MASK)); 	
+//  Delay(10);
+ 
+//		DelayUs(20);
+//		PTA->PCOR     |= (1UL<<5);										// Adm Recv ONN && TX OFF
+	return Udata;
+//		return UART0->D = Udata;		  
+}
+/****************************************************************************************************/
+/* 															  UART SEND Func        																	          */
+/****************************************************************************************************/
+void UART_Send(char* DATA, char datasize)
+{
+	int j;
+//	PTA->PSOR     |= (1UL<<5);										// Adm Recv OFF && TX ON
+//	Delay(1);
+//	__disable_irq();
+	for(j=0; j<datasize; j++)
+		{
+			UART_putchar(DATA[j]);
+		}
+//	PTA->PCOR     |= (1UL<<5);										// Adm Recv ON && TX OFF 
+//	__enable_irq();
+}
+/****************************************************************************************************/
+/*														  UART RECIEVE Func     																	            */
+/****************************************************************************************************/
+void UART_Recv(char* DATA, int datasize)
+{
+	int j;
+	//	UART_RX_clr();
+	//	PTA->PCOR     |= (1UL<<5);										// Adm Recv ON && TX OFF
+	
+	__disable_irq();
+			 
+	for (j=0; j<datasize; j++)
+	{
+		DATA[j]=UART_getchar();
+	}
+	//	PTA->PCOR     |= (1UL<<5);										// Adm Recv ON && TX OFF
+	__enable_irq();
+}		 
+	
+/************************************************************************************************************************************************************/
+/**																	retarget		data write uart via printf							*******************************************************************************************/
+/************************************************************************************************************************************************************/
+struct __FILE
+{
+  int handle;
+  /* Whatever you require here. If the only file you are using is */
+  /* standard output using printf() for debugging, no file handling */
+  /* is required. */
+};
+
+
+FILE __stdout;
+
+int fputc(int ch, FILE *f) 
+{
+	//FPTA->PSOR     |= (1UL<<5);										// Adm Recv OFF && TX ON
+  //	UART_RX_clr(UARTcount); // clear rx buffer so no recv data can fulfill the buffer 
+  //	Clear_BUFFER();						
+  /* Your implementation of fputc(). */
+  UART_putchar((char) ch);
+	//BAUD_Delay();																	//init ADM to prevent byte loss 
+  //	Delay(35);
+	//FPTA->PCOR     |= (1UL<<5);										// Adm Recv ON && TX OFF 
+  return ch;
+}
+
+char UART_RX[100];
+int UARTcount;
+/*****************************************************************************************************/
+/*												 Interrupt Routine for UART RECIEVE Func        										       */
+/*****************************************************************************************************/	 
+void UART0_IRQHandler(void)
+{
+	RED_ON;
+
+//	UART_RX[UARTcount]=((UART0->D) & 0x7F);		//recv data = 8 bit we need 7 bit ignore first bit of the data
+	UART_RX[UARTcount]= UART0->D;
+	UARTcount++;
+
+//	if(UARTcount >99)					// if more than 1500 chars clear buf
+//	{
+//		UART_RX_clr(UARTcount);
+//	}
+	
+}
 /**********************************************************************
 ***********							 getRegisters									*****************
 ***********************************************************************	
@@ -706,7 +1366,8 @@ void setRegisters(void)
 	NOTE : message on the air (test)
 **********************************************************************/
 char buf[7];							//message buffer
-typedef  struct {
+typedef  struct 
+{
 	char Addr;
 	char Priority;
 	char Direction;
@@ -714,10 +1375,10 @@ typedef  struct {
 	char WakeUpTime;
 	char Temperature;
 	char AlarmFlags;
-	}MSG;
+}MSG;
 	
   MSG* pMSG; 		//buffer pointer
-	uint8_t writeByte;
+	char WriteByte;
 	char testo;
 /**********************************************************************
 ***********							 Main Program						***********************
@@ -726,7 +1387,7 @@ typedef  struct {
 	NOTE :
 **********************************************************************/
 int main (void) 
-	{
+{
 	
   SystemCoreClockUpdate();
 //	SysTick_Config(10000);																					//turn SysTick timer on
@@ -736,22 +1397,19 @@ int main (void)
 	SIM->SCGC5 |= SIM_SCGC5_PORTA_MASK;
 	Delay(0x500);                     																//delay  
 	LED_Init();           																						//Initialize the LEDs          
+	USART1_Init(19200);
 	spi_init();																												// SPI-1 init 
+	Delay(10);
+	
 	Delay(0x100);																											//delay
 	hede=PTD->PDIR;
-	TI_Init();
-//		TI_HW_Reset();
+	/*TEST*/ 
+//	TI_Init();
+//	TI_HW_Reset();
 //	Delay(0x3000);													//delay for logic analyzer
-	hede=PTD->PDIR;
+//	hede=PTD->PDIR;
 	
-//	SpiStart();	
-//	SPI_Send(0x10);
-//	SpiStop();
-//		test[0]=TI_ReadByte(0x0F);
-//		test[1]=TI_ReadByte(0x0F);
-//		test[2]=TI_ReadByte(0x0F);
-//		test[3]=TI_ReadByte(0x0F);
-//		test[4]=TI_ReadByte(0x0F);
+
 /**********************************************************************
 ***********							 Test Area					***********************
 ***********************************************************************/
@@ -788,24 +1446,55 @@ int main (void)
 	
 //	test[0] = getCelcius();	 //Read temp sensor TEST			
 //	
-		writeByte = 0x40;
-		toto[0] = cc112xSpiReadReg( CC112X_IF_ADC1,&testo, 1);
-		toto[1] = cc112xSpiWriteReg( CC112X_IF_ADC1, &writeByte, 1); //Tempsens settings, bit 6 high
-		toto[2] = cc112xSpiReadReg( CC112X_IF_ADC1,&testo, 1);
-		trxSpiCmdStrobe(CC112X_SRES);
-		toto[3] = cc112xSpiReadReg( CC112X_IF_ADC1,&testo, 1);
-		
-//	Delay(0x2000);
 
-	writeByte = tempRead(); // TEST read temperature from CC1120
+/*TEST*/
+//	WriteByte = 0x40;
+//	toto[0] = cc112xSpiReadReg( CC112X_IF_ADC1,&testo, 1);
+//	toto[1] = cc112xSpiWriteReg( CC112X_IF_ADC1, &WriteByte, 1); //Tempsens settings, bit 6 high
+//	toto[2] = cc112xSpiReadReg( CC112X_IF_ADC1,&testo, 1);
+//	trxSpiCmdStrobe(CC112X_SRES);
+//	toto[3] = cc112xSpiReadReg( CC112X_IF_ADC1,&testo, 1);
+//		
+//	WriteByte = 0x00;
+// toto[4] = cc112xSpiWriteReg(CC112X_FS_VCO2, &WriteByte, 1);
+//		toto[5] = cc112xSpiReadReg(CC112X_FS_VCO2, &testo, 1);
+////	Delay(0x2000);
+//	asde = 0;
+	
+///*TEST*/	
+//	//WriteByte = tempRead(); // TEST read temperature from CC1120
+//	if (WriteByte <= 25)
+//	{
+//		YELLOW_OFF;	GREEN_OFF;	RED_OFF;
+//		GREEN_ON;
+//		Delay(1000); 
+//	}
+	
+//	IRQ_Init();										// Initialize IRQ
+	
+	
+//	registerConfig();
+//	runTX();
 	
 	while(1)
 	{
+		printf("ASDE");
+		Delay(2000);
+		
+		if (asde == 1)
+		{
+			YELLOW_OFF;	GREEN_OFF;
+			RED_ON;
+			Delay(8000); 
+			RED_OFF;
+			asde = 0;
+			GREEN_ON;
+		}
 		// Turn on leds 1 by 1 
-	YELLOW_ON; Delay(1000);	GREEN_ON; Delay(1000);	
-		RED_ON; Delay(1000);
-	//Turn off leds
-	YELLOW_OFF;	GREEN_OFF;	RED_OFF;
+//	YELLOW_ON; Delay(1000);	GREEN_ON; Delay(1000);	
+//	RED_ON; Delay(1000); 
+//	//Turn off leds
+//	YELLOW_OFF;	GREEN_OFF;	RED_OFF;
 //		SpiStart();
 //		hede=PTD->PDIR;
 //		DelayUs(0x1000);
