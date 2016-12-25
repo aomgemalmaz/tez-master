@@ -107,8 +107,8 @@ void LED_Init(void) {
   PORTB->PCR[18] = PORT_PCR_MUX(1);                     /* Pin PTB18 is GPIO-RED */ 
   PORTB->PCR[19] = PORT_PCR_MUX(1);                     /* Pin PTB19 is GPIO-GREEN */
 	PORTD->PCR[1]  = PORT_PCR_MUX(1);                     /* Pin PTD1 is GPIO-BLUE */
-	FPTB->PDDR     |= (1UL<<18) | (1UL<<19);					 /* enable PTB18/19 as Output */
-	FPTD->PDDR     |= (1UL);														// enable PTD1 as output
+	FPTB->PDDR     |= (1UL<<18) | (1UL<<19);						 	/* enable PTB18/19 as Output */
+	FPTD->PDDR     |= (1UL);															// enable PTD1 as output
 	//Turn off leds
 	YELLOW_OFF;	GREEN_OFF;	RED_OFF;
 	// Turn on leds 1 by 1 
@@ -150,12 +150,12 @@ void LED_Init(void) {
 		
 		SPI1->C1 = SPI_C1_MSTR_MASK;         											//Set SPI0 to Master   
 		SPI1->C2 = SPI_C2_MODFEN_MASK;                           	//Master SS pin acts as slave select output        
-		//SPI1->BR = (SPI_BR_SPPR(0x111) | SPI_BR_SPR(0x0100));     		//Set baud rate prescale divisor to 3 & set baud rate divisor to 32 for baud rate of 15625 hz        
+		//SPI1->BR = (SPI_BR_SPPR(0x111) | SPI_BR_SPR(0x0100));     //Set baud rate prescale divisor to 3 & set baud rate divisor to 32 for baud rate of 15625 hz        
 //		SPI1->BR |= 0x30;
 			
 			
-			//SPI1->BR |= 0x43;
-			SPI1->BR |= 0x45; // test
+			SPI1->BR |= 0x43;
+//			SPI1->BR |= 0x45; // test
 //		SPI1->C1 |=  (1UL << 3) ; 										//SPI MOD 3
 //		SPI1->C1 |=  (1UL << 2) ; 
 		
@@ -747,6 +747,7 @@ static void runRX(void)
 	// Set radio in RX
   trxSpiCmdStrobe(CC112X_SRX);
 	
+	
 	// Wait for packet received interrupt
 	if(packetSemaphore == ISR_ACTION_REQUIRED) 
 		{
@@ -781,6 +782,10 @@ static void runRX(void)
 								}
 						 }
 				 }
+				if(rxBuffer[0] != 0)
+				{
+					GREEN_ON;
+				}
 				// Reset packet semaphore
 				packetSemaphore = ISR_IDLE;
 				// Set radio back in RX
@@ -931,7 +936,8 @@ static void TX_manualCalibration(void)
 static void runTX(void) 
 {
 	// Initialize packet buffer of size PKTLEN + 1
-  char txBuffer[PKTLEN+1] = {0};
+ // char txBuffer[PKTLEN+1] = {0}; "AMK POKUMANI";
+	char txBuffer[PKTLEN+1] = "AMK POKUMANI";
 	
 	// Calibrate radio according to errata
    TX_manualCalibration();
@@ -969,8 +975,8 @@ void IRQ_Init(void)
 //	PORTD->PCR[4] |=PORT_PCR_MUX(1);							//Port D-4 is GPIO
 	
 	
-	PORTD->PCR[4] |= PORT_PCR_MUX(1) | PORT_PCR_PE(1) | PORT_PCR_PS(1) | PORT_PCR_IRQC(0x0A); //PTD4 as GPIO, Pull up, interrupt on falling edge
-	PTD->PDDR     &= (0UL<<4);							  		//Port D-4 Input
+	PORTA->PCR[12] |= PORT_PCR_MUX(1) | PORT_PCR_PE(1) | PORT_PCR_PS(1) | PORT_PCR_IRQC(0x0A); //PTD4 as GPIO, Pull up, interrupt on falling edge
+	PTA->PDDR     &= (0UL<<12);							  		//Port D-4 Input
 	
 //	PORTD->PCR[4] |= (1UL<< 19);		//IRQC = 1010
 //	PORTD->PCR[4] |= (1UL<< 17);		//IRQC= 1010   Interrupt @ falling edge
@@ -982,8 +988,8 @@ void IRQ_Init(void)
 	
 	//Enable PortD Hardware interrupt
 	
-	NVIC_EnableIRQ(PORTD_IRQn );							//Port D IRQ enable	
-	NVIC_SetPriority(PORTD_IRQn ,2);					//Port D IRQ priority 2
+	NVIC_EnableIRQ(PORTA_IRQn );							//Port D IRQ enable	
+	NVIC_SetPriority(PORTA_IRQn ,2);					//Port D IRQ priority 2
 //				NVIC_SetPriority(SysTick_IRQn ,2);				//SysTick Timer priority 
 	
 //					PORTD->PCR[4]= PORT_PCR_ISF_MASK | PORT_PCR_IRQC(10) ;
@@ -995,7 +1001,7 @@ char asde;
 /*****************************************************************************************************/
 /*													Port D IRQ routine              																			   */
 /*****************************************************************************************************/		
-void PORTD_IRQHandler(void)
+void PORTA_IRQHandler(void)
 {
 	/*
 		DO IRQ JOB here... Than do not forget to Clear the interrupt!!!!!!!!
@@ -1003,8 +1009,8 @@ void PORTD_IRQHandler(void)
 	
 	packetSemaphore = ISR_ACTION_REQUIRED ;
 	
-	PORTD->PCR[4] |= PORT_PCR_ISF_MASK; 		// Clear ISF flag for clearing interrupt		
-	NVIC_ClearPendingIRQ(PORTD_IRQn );			// clear pending int from KL25
+	PORTA->PCR[12] |= PORT_PCR_ISF_MASK; 		// Clear ISF flag for clearing interrupt		
+	NVIC_ClearPendingIRQ(PORTA_IRQn);			// clear pending int from KL25
 }
 
 /**********************************************************************
@@ -1131,7 +1137,7 @@ void USART1_Init(uint16_t baud_rate)
 // Turn on clock to UART0 module and select 48Mhz clock (FLL/PLL source)
   SIM->SCGC4 |= SIM_SCGC4_UART0_MASK;
   SIM->SOPT2 &= ~SIM_SOPT2_UART0SRC_MASK;
-  SIM->SOPT2 |= SIM_SOPT2_UART0SRC(2);                 //OSCERCLK selected (8MHZ Cristal)
+  SIM->SOPT2 |= SIM_SOPT2_UART0SRC(1);                 //OSCERCLK selected (8MHZ Cristal)
 
 	
 	UART0->C2 &= ~(UARTLP_C2_RE_MASK | UARTLP_C2_TE_MASK |UART0_C2_RIE_MASK); 
@@ -1147,7 +1153,7 @@ void USART1_Init(uint16_t baud_rate)
   UART0->BDH = (divisor >> 8) & UARTLP_BDH_SBR_MASK;
   UART0->BDL = (divisor & UARTLP_BDL_SBR_MASK);
 		
-	UART0->C1 |=UART0_C1_PE_MASK; 		// parity enable
+//	UART0->C1 |=UART0_C1_PE_MASK; 		// parity enable
 
 //	PTA->PCOR     |= (1UL<<5);										// Adm Recv ON && TX OFF
 		
@@ -1155,7 +1161,7 @@ void USART1_Init(uint16_t baud_rate)
 	
 	//Enable UART interrupt				
 	NVIC_EnableIRQ(UART0_IRQn);
-	NVIC_SetPriority(UART0_IRQn,1);
+	NVIC_SetPriority(UART0_IRQn,2);
 	
 //			__asm ("cpsie i");
 		
@@ -1179,15 +1185,14 @@ char UART_putchar(char Udata )
 	/* Wait until space is available in the FIFO */
 	//while(!(UART0->S1 & UART0_S1_TDRE_MASK) && !(UART0->S1 & UART_S1_TC_MASK));
 	while(!(UART0->S1 & UART0_S1_TDRE_MASK));
-	UART0->D = Udata;
-//	Delay(1);
+
 	while(!(UART0->S1 & UART_S1_TC_MASK)); 	
 //  Delay(10);
- 
+	UART0->D = Udata;
 //		DelayUs(20);
 //		PTA->PCOR     |= (1UL<<5);										// Adm Recv ONN && TX OFF
-	return Udata;
-//		return UART0->D = Udata;		  
+//	return Udata;
+		return 0;	  
 }
 /****************************************************************************************************/
 /* 															  UART SEND Func        																	          */
@@ -1214,14 +1219,14 @@ void UART_Recv(char* DATA, int datasize)
 	//	UART_RX_clr();
 	//	PTA->PCOR     |= (1UL<<5);										// Adm Recv ON && TX OFF
 	
-	__disable_irq();
+//	__disable_irq();
 			 
 	for (j=0; j<datasize; j++)
 	{
 		DATA[j]=UART_getchar();
 	}
 	//	PTA->PCOR     |= (1UL<<5);										// Adm Recv ON && TX OFF
-	__enable_irq();
+//	__enable_irq();
 }		 
 	
 /************************************************************************************************************************************************************/
@@ -1258,7 +1263,7 @@ int UARTcount;
 /*****************************************************************************************************/	 
 void UART0_IRQHandler(void)
 {
-	RED_ON;
+	GREEN_ON;
 
 //	UART_RX[UARTcount]=((UART0->D) & 0x7F);		//recv data = 8 bit we need 7 bit ignore first bit of the data
 	UART_RX[UARTcount]= UART0->D;
@@ -1269,6 +1274,7 @@ void UART0_IRQHandler(void)
 //		UART_RX_clr(UARTcount);
 //	}
 	
+	GREEN_OFF;
 }
 /**********************************************************************
 ***********							 getRegisters									*****************
@@ -1391,13 +1397,15 @@ int main (void)
 	
   SystemCoreClockUpdate();
 //	SysTick_Config(10000);																					//turn SysTick timer on
-	SysTick_Config(SystemCoreClock/1600);															// 1ms SysTicks
+	SysTick_Config(SystemCoreClock/992);															// 1ms SysTicks
 	Delay(100);																												//wait for system stabilization
 	SIM->SCGC5 |= SIM_SCGC5_PORTD_MASK | SIM_SCGC5_PORTB_MASK;      	//Port-D-B clock ON 
 	SIM->SCGC5 |= SIM_SCGC5_PORTA_MASK;
 	Delay(0x500);                     																//delay  
-	LED_Init();           																						//Initialize the LEDs          
-	USART1_Init(19200);
+	LED_Init();           																						//Initialize the LEDs  
+	Delay(100);
+//	USART1_Init(9600);
+	Delay(100);
 	spi_init();																												// SPI-1 init 
 	Delay(10);
 	
@@ -1405,9 +1413,9 @@ int main (void)
 	hede=PTD->PDIR;
 	/*TEST*/ 
 //	TI_Init();
-//	TI_HW_Reset();
-//	Delay(0x3000);													//delay for logic analyzer
-//	hede=PTD->PDIR;
+	TI_HW_Reset();
+	Delay(0x1000);													//delay for logic analyzer
+	hede=PTD->PDIR;
 	
 
 /**********************************************************************
@@ -1448,21 +1456,25 @@ int main (void)
 //	
 
 /*TEST*/
+// ************************************************************************************************
+/*****************SPI TEST ******** ********  */
 //	WriteByte = 0x40;
 //	toto[0] = cc112xSpiReadReg( CC112X_IF_ADC1,&testo, 1);
 //	toto[1] = cc112xSpiWriteReg( CC112X_IF_ADC1, &WriteByte, 1); //Tempsens settings, bit 6 high
 //	toto[2] = cc112xSpiReadReg( CC112X_IF_ADC1,&testo, 1);
 //	trxSpiCmdStrobe(CC112X_SRES);
 //	toto[3] = cc112xSpiReadReg( CC112X_IF_ADC1,&testo, 1);
-//		
+////		
 //	WriteByte = 0x00;
-// toto[4] = cc112xSpiWriteReg(CC112X_FS_VCO2, &WriteByte, 1);
-//		toto[5] = cc112xSpiReadReg(CC112X_FS_VCO2, &testo, 1);
-////	Delay(0x2000);
+//	toto[4] = cc112xSpiWriteReg(CC112X_FS_VCO2, &WriteByte, 1);
+//	toto[5] = cc112xSpiReadReg(CC112X_FS_VCO2, &testo, 1);
+/*****************SPI TEST ******** ****************  */
+// ************************************************************************************************
+//Delay(0x2000);
 //	asde = 0;
 	
 ///*TEST*/	
-//	//WriteByte = tempRead(); // TEST read temperature from CC1120
+//	WriteByte = tempRead(); // TEST read temperature from CC1120
 //	if (WriteByte <= 25)
 //	{
 //		YELLOW_OFF;	GREEN_OFF;	RED_OFF;
@@ -1470,26 +1482,41 @@ int main (void)
 //		Delay(1000); 
 //	}
 	
-//	IRQ_Init();										// Initialize IRQ
+	IRQ_Init();										// Initialize IRQ
+	
+	WriteByte = tempRead(); // TEST read temperature from CC1120
 	
 	
-//	registerConfig();
-//	runTX();
+	registerConfig();
+	Delay(10);
+	
+	UARTcount = 0 ;
+
+	
+	
+	
+//	got[0]= UART0->C1;
+//	got[1]= UART0->C2;
+//	
+//	UART_putchar(0xAB);
+//	printf("ASDE");
+//	Delay(1000);
+//	printf("ASDE");
+//	Delay(1000);
+//  	printf("ASDE");
+//	Delay(1000);
+//	
+	YELLOW_OFF;	GREEN_OFF;	RED_OFF;
 	
 	while(1)
 	{
-		printf("ASDE");
-		Delay(2000);
 		
-		if (asde == 1)
-		{
-			YELLOW_OFF;	GREEN_OFF;
-			RED_ON;
-			Delay(8000); 
-			RED_OFF;
-			asde = 0;
-			GREEN_ON;
-		}
+		
+		runRX();
+		Delay(2000); 
+		RED_OFF;
+		
+		
 		// Turn on leds 1 by 1 
 //	YELLOW_ON; Delay(1000);	GREEN_ON; Delay(1000);	
 //	RED_ON; Delay(1000); 

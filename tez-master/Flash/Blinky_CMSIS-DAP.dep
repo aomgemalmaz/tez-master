@@ -1,5 +1,5 @@
 Dependencies for Project 'Blinky', Target 'CMSIS-DAP': (DO NOT MODIFY !)
-F (.\Blinky.c)(0x585723A9)(-c --cpu Cortex-M0+ -D__EVAL -g -O0 --apcs=interwork -I C:\Users\PC1\Desktop\tez-master\tez-master\RTE-I C:\Users\PC1\Desktop\tez-master\tez-master\RTE\Device\MKL25Z128xxx4-I C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.0.0-Beta4\CMSIS\Include-I C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.11.0\Device\Include-D__UVISION_VERSION="520" -D_RTE_ -DMKL25Z128xxx4-o .\flash\blinky.o --omf_browse .\flash\blinky.crf --depend .\flash\blinky.d)
+F (.\Blinky.c)(0x5860386C)(-c --cpu Cortex-M0+ -D__EVAL -g -O0 --apcs=interwork -I C:\Users\PC1\Desktop\tez-master\tez-master\RTE-I C:\Users\PC1\Desktop\tez-master\tez-master\RTE\Device\MKL25Z128xxx4-I C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.0.0-Beta4\CMSIS\Include-I C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.11.0\Device\Include-D__UVISION_VERSION="520" -D_RTE_ -DMKL25Z128xxx4-o .\flash\blinky.o --omf_browse .\flash\blinky.crf --depend .\flash\blinky.d)
 I (C:\Keil_v5\ARM\ARMCC\include\stdio.h)(0x56FE973E)
 I (C:\Keil_v5\ARM\ARMCC\include\string.h)(0x56FE973E)
 I (C:\Keil_v5\ARM\ARMCC\include\stdlib.h)(0x56FE973E)
@@ -9,7 +9,7 @@ I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.0.0-Beta4\CMSIS\Include\core_cm0plus.h)(0x573
 I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.0.0-Beta4\CMSIS\Include\core_cminstr.h)(0x573574F6)
 I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.0.0-Beta4\CMSIS\Include\cmsis_armcc.h)(0x573574F6)
 I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.0.0-Beta4\CMSIS\Include\core_cmfunc.h)(0x573574F6)
-I (C:\Users\PC1\Desktop\tez-master\tez-master\RTE\Device\MKL25Z128xxx4\system_MKL25Z4.h)(0x564462EA)
+I (C:\Users\PC1\Desktop\tez-master\tez-master\RTE\Device\MKL25Z128xxx4\system_MKL25Z4.h)(0x585EE730)
 I (TIspi.h)(0x58485C2A)
 I (C:\Keil_v5\ARM\ARMCC\include\math.h)(0x56FE9736)
 F (.\TIspi.h)(0x58485C2A)()
@@ -23,5 +23,5 @@ I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.0.0-Beta4\CMSIS\Include\core_cm0plus.h)(0x573
 I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.0.0-Beta4\CMSIS\Include\core_cminstr.h)(0x573574F6)
 I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.0.0-Beta4\CMSIS\Include\cmsis_armcc.h)(0x573574F6)
 I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.0.0-Beta4\CMSIS\Include\core_cmfunc.h)(0x573574F6)
-I (C:\Users\PC1\Desktop\tez-master\tez-master\RTE\Device\MKL25Z128xxx4\system_MKL25Z4.h)(0x564462EA)
-F (RTE\Device\MKL25Z128xxx4\system_MKL25Z4.h)(0x564462EA)()
+I (C:\Users\PC1\Desktop\tez-master\tez-master\RTE\Device\MKL25Z128xxx4\system_MKL25Z4.h)(0x585EE730)
+F (RTE\Device\MKL25Z128xxx4\system_MKL25Z4.h)(0x585EE730)()
