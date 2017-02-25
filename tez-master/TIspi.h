@@ -1,3 +1,8 @@
+//#include <stdint.h>
+//#include "MKL25Z4.h"                    // Device header
+
+
+
 /* configuration registers */
 #define CC112X_IOCFG3                   0x0000
 #define CC112X_IOCFG2                   0x0001
@@ -219,6 +224,9 @@
 #define CC112X_STATE_RXFIFO_ERROR       0x60
 #define CC112X_STATE_TXFIFO_ERROR       0x70
 
+typedef unsigned           char uint8_t;
+typedef unsigned short     int uint16_t;
+typedef unsigned           int uint32_t;
 
 /******************************************************************************
  * TYPEDEFS
@@ -230,7 +238,6 @@ typedef struct
 }registerSetting_t;
 
 typedef uint8_t rfStatus_t;
-
 
 /******************************************************************************
  * VARIABLES
@@ -294,3 +301,39 @@ static const registerSetting_t preferredSettings[] = {
     {CC112X_XOSC1,          0x07},
 };
 
+/**********************************************************************
+***********							FUNCTION PROTOTYPES					*******************
+***********************************************************************	
+**********************************************************************
+**********************************************************************/
+
+
+
+//void TI_HW_Reset(void);
+//void TI_Init(void);
+//void TI_WriteByte( char addr,  char data);
+//char TI_ReadByte(char addr);
+//int TI_Write_brst(int addr,char* buf,int len);
+//int TI_Read_brst(int addr, char* buf,int len);
+//void TI_Command( char command );
+//char TI_Command_Read(char command);
+//static void runTX(void) ;
+//static void runRX(void);
+//static void trxReadWriteBurstSingle(uint8_t addr,char *pData,uint16_t len);
+//char trx16BitRegAccess(uint8_t accessType, uint8_t extAddr, uint8_t regAddr, char *pData, uint8_t len);
+//uint8_t trx8BitRegAccess(uint8_t accessType, uint8_t addrByte, char *pData, uint16_t len);
+//uint8_t cc112xSpiReadReg(uint16_t addr, char *pData, uint8_t len);
+//uint8_t trxSpiCmdStrobe(uint8_t cmd);
+//uint8_t cc112xSpiWriteReg(uint16_t addr, char *pData, uint8_t len);
+//uint8_t cc112xSpiWriteTxFifo(char *pData, uint8_t len);
+//uint8_t cc112xSpiReadRxFifo(char * pData, uint8_t len);
+//uint8_t cc112xGetTxStatus(void);
+//uint8_t cc112xGetRxStatus(void);
+//static void RX_manualCalibration(void);
+
+//static void createPacket(char txBuffer[]);
+//static void TX_manualCalibration(void) ;
+
+
+//char toto[22]="AMK POKUMANI";
+//int  packetCounter = 0;

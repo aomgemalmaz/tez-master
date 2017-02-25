@@ -22,20 +22,22 @@ Dialog DLL:      TARMCM1.DLL V1.10.0.0
  
 <h2>Project:</h2>
 C:\Users\PC1\Desktop\tez-master\tez-master\Blinky.uvprojx
-Project File Date:  09/14/2016
+Project File Date:  02/25/2017
 
 <h2>Output:</h2>
 *** Using Compiler 'V5.06 update 2 (build 183)', folder: 'C:\Keil_v5\ARM\ARMCC\Bin'
 Rebuild target 'CMSIS-DAP'
 compiling TIspi.c...
+compiling Application.c...
 assembling startup_MKL25Z4.s...
-compiling system_MKL25Z4.c...
+compiling KL25.c...
 compiling Blinky.c...
-Blinky.c(936): warning:  #177-D: function "runTX" was declared but never referenced
+Blinky.c(2273): warning:  #177-D: function "runTX" was declared but never referenced
   static void runTX(void) 
 Blinky.c: 1 warning, 0 errors
+compiling system_MKL25Z4.c...
 linking...
-Program Size: Code=13540 RO-data=692 RW-data=76 ZI-data=596  
+Program Size: Code=14076 RO-data=660 RW-data=80 ZI-data=736  
 ".\Flash\Blinky.axf" - 0 Error(s), 1 Warning(s).
 
 <h2>Software Packages used:</h2>
@@ -63,10 +65,10 @@ Package Vendor: Keil
    * Component: ARM::CMSIS:CORE:5.0.0
 
    * Component: Keil::Device:Startup:2.5.0
-      Source file:   Device\Source\system_MKL25Z4.c
-      Include file:  Device\Source\system_MKL25Z4.h
       Source file:   Device\Source\ARM\startup_MKL25Z4.s
-Build Time Elapsed:  00:00:01
+      Include file:  Device\Source\system_MKL25Z4.h
+      Source file:   Device\Source\system_MKL25Z4.c
+Build Time Elapsed:  00:00:02
 </pre>
 </body>
 </html>

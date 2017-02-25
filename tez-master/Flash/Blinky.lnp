@@ -1,6 +1,8 @@
 --cpu Cortex-M0+
 ".\flash\blinky.o"
 ".\flash\tispi.o"
+".\flash\kl25.o"
+".\flash\application.o"
 ".\flash\startup_mkl25z4.o"
 ".\flash\system_mkl25z4.o"
 --strict --scatter ".\Flash\Blinky.sct"
