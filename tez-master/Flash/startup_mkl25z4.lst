@@ -610,7 +610,7 @@ Command Line: --debug --xref --diag_suppress=9931 --cpu=Cortex-M0+ --apcs=inter
 work --depend=.\flash\startup_mkl25z4.d -o.\flash\startup_mkl25z4.o -IC:\Users\
 PC1\Desktop\tez-master\tez-master\RTE -IC:\Users\PC1\Desktop\tez-master\tez-mas
 ter\RTE\Device\MKL25Z128xxx4 -IC:\Keil_v5\ARM\PACK\ARM\CMSIS\5.0.0-Beta4\CMSIS\
-Include -IC:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.11.0\Device\Include --pre
+Include -IC:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.13.0\Device\Include --pre
 define="__EVAL SETA 1" --predefine="__UVISION_VERSION SETA 520" --predefine="_R
 TE_ SETA 1" --predefine="MKL25Z128xxx4 SETA 1" --list=.\flash\startup_mkl25z4.l
 st RTE\Device\MKL25Z128xxx4\startup_MKL25Z4.s

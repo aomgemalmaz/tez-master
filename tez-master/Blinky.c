@@ -12,11 +12,15 @@
 #include <string.h>
 #include <stdlib.h>
 #include "TIspi.h"											//spi.h
-#include "kl25.h"
-//#include "MKL25Z4.h"                  // Device header
+
+#include "main.h"
+//#include "kl25.h"
+
+#include "MKL25Z4.h"                  // Device header
 
 #include <math.h>
 
+#define OS_RUNPRIV   1 
 
 //#define 	WRITE_BURST     		0x40						//write burst
 //#define 	READ_SINGLE     		0x80						//read single
@@ -66,8 +70,17 @@ uint8_t cc112xGetRxStatus(void);
 static void RX_manualCalibration(void);
 static void createPacket(char txBuffer[]);
 static void TX_manualCalibration(void) ;
-static int8_t tempRead(void);
+static int8_t get_Temperature(void);
 void Command_Parse(char* buf);
+
+//KL25.h functions
+void spi_init(void);
+char SPI_Send(char Data);
+void USART1_Init(uint16_t baud_rate);
+char UART_getchar(void );
+char UART_putchar(char Udata );
+void UART_Send(char* DATA, char datasize);
+void UART_Recv(char* DATA, int datasize);
 
 ///**********************************************************************
 //***********							 Macros       		  	*************************
@@ -113,6 +126,7 @@ char packetSemaphore;
 int  packetCounter = 0;
 #define PKTLEN	11  // 1 < PKTLEN < 126  (first 30)
 char Message_buf[PKTLEN];							//message buffer
+char Measure_Temp;
 ///**********************************************************************
 //***********							 Systick					  	*************************
 //***********************************************************************	
@@ -1043,7 +1057,7 @@ void PORTA_IRQHandler(void)
 		DO IRQ JOB here... Than do not forget to Clear the interrupt!!!!!!!!
 	*/
 	//GREEN_OFF;
-	//RED_ON;
+	RED_ON;
 	packetSemaphore = ISR_ACTION_REQUIRED ;
 	
 	PORTA->PCR[12] |= PORT_PCR_ISF_MASK; 		// Clear ISF flag for clearing interrupt		
@@ -1056,7 +1070,7 @@ void PORTA_IRQHandler(void)
 	Aim  : temp sensor digital readout
 	NOTE : see DN-403 Application note!!!
 **********************************************************************/
-static int8_t tempRead(void) {
+static int8_t get_Temperature(void) {
 //Variables
 char RegValue = 0;
 char marcStatus;
@@ -1265,7 +1279,59 @@ static void registerConfig(void)
 //	//	PTA->PCOR     |= (1UL<<5);										// Adm Recv ON && TX OFF
 ////	__enable_irq();
 //}		 
+uint16_t UART_baud;
+uint16_t divisor;
+#define UART_OSCERCLK   	8000000
+/****************************************************************************************************/
+/* 													 UART Initialize Function   																			 		 	*/
+/****************************************************************************************************/
+void USART1_Init(uint16_t baud_rate)
+{
+	char osr=15;
+	UART_baud=baud_rate;
+
+	//This part will be added to GPIO Init function!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		// Select "Alt 2" usage to enable UART0 on pins
+	PORTA->PCR[1] = PORT_PCR_ISF_MASK|PORT_PCR_MUX(0x2);
+	PORTA->PCR[2] = PORT_PCR_ISF_MASK|PORT_PCR_MUX(0x2);
 	
+
+	
+// Turn on clock to UART0 module and select 48Mhz clock (FLL/PLL source)
+  SIM->SCGC4 |= SIM_SCGC4_UART0_MASK;
+  SIM->SOPT2 &= ~SIM_SOPT2_UART0SRC_MASK;
+  SIM->SOPT2 |= SIM_SOPT2_UART0SRC(1);                 //OSCERCLK selected (8MHZ Cristal)
+
+	
+	UART0->C2 &= ~(UARTLP_C2_RE_MASK | UARTLP_C2_TE_MASK | UART0_C2_RIE_MASK); 
+
+  UART0->C2 = 0;						//disable uart 0 to change registers
+  UART0->C1 = 0;
+  UART0->C3 = 0;
+  UART0->S2 = 0;    
+		
+		// Set the baud rate divisor
+		
+ 	//divisor = (uint16_t)(UART_OSCERCLK / ((osr+1)* baud_rate));
+	divisor = (uint16_t)(SystemCoreClock / ((osr+1)* baud_rate));
+  
+  UART0->C4 = osr;											//osr = 3
+  UART0->BDH = (divisor >> 8) & UARTLP_BDH_SBR_MASK;
+  UART0->BDL = (divisor & UARTLP_BDL_SBR_MASK);
+		
+//	UART0->C1 |=UART0_C1_PE_MASK; 		// parity enable
+
+//	PTA->PCOR     |= (1UL<<5);										// Adm Recv ON && TX OFF
+		
+	UART0->C2 = UARTLP_C2_RE_MASK | UARTLP_C2_TE_MASK |UART0_C2_RIE_MASK;								// Enable Uart-0
+	
+	//Enable UART interrupt				
+	NVIC_EnableIRQ(UART0_IRQn);
+	NVIC_SetPriority(UART0_IRQn,2);
+	
+//			__asm ("cpsie i");
+}	
+
 /************************************************************************************************************************************************************/
 /**																	retarget		data write uart via printf							*******************************************************************************************/
 /************************************************************************************************************************************************************/
@@ -1300,7 +1366,7 @@ int UARTcount;
 /*****************************************************************************************************/	 
 void UART0_IRQHandler(void)
 {
-	//GREEN_ON;
+	YELLOW_ON;
 
 //	UART_RX[UARTcount]=((UART0->D) & 0x7F);		//recv data = 8 bit we need 7 bit ignore first bit of the data
 	UART_RX[UARTcount]= UART0->D;
@@ -1311,7 +1377,7 @@ void UART0_IRQHandler(void)
 //		UART_RX_clr(UARTcount);
 //	}
 	
-	GREEN_OFF;
+	YELLOW_OFF;
 }
 /**********************************************************************
 ***********							 getRegisters									*****************
@@ -1413,21 +1479,38 @@ char buf[8];
 //char Message_buf[8];							//message buffer
 typedef  struct 
 {
-	char Addr;
-	char Password;
-	char Direction;
-	char Command;
-	char RSSI;
-	char WakeUpTime;
-	char Temperature;
-	char AlarmFlags;
+	char Addr;				//node address	
+	char Password;		//password for not to mix with neighbour networks
+	char Direction;		//routing direction	
+	char Command;			//command
+	char RSSI;				//RSSI value
+	char WakeUpTime;	//Wakeup time for next cyclic communication
+	char Temperature;	//temperature value
+	char AlarmFlags;	//alarm
+//	char FrameID;			//message frame no for ack
 }MSG;
 	
   MSG* pMSG; 		//buffer pointer
 	char WriteByte;
 	char testo;
 
-#define RXTX_compile 0  // 1=TX   0= RX
+typedef  struct 
+{
+	char Source;				//node address	
+	char Destination;		//password for not to mix with neighbour networks
+	char Direction;		//routing direction	
+	char Frame_Type;			//command
+	char Hop_Count;				//RSSI value
+	char Frame_ID;	//Wakeup time for next cyclic communication
+	char Data[15];	//temperature value
+}RADIO_Message;
+
+
+#define RADIO_MODE_RX		0
+#define RADIO_MODE_TX		1	
+
+
+#define RXTX_compile RADIO_MODE_TX  // 1=TX   0= RX
 
 /**********************************************************************
 ***********							 Main Program						***********************
@@ -1435,7 +1518,7 @@ typedef  struct
 	Aim  : main program
 	NOTE :
 **********************************************************************/
-int main (void) 
+int main (void)  
 {
 	
   SystemCoreClockUpdate();
@@ -1460,9 +1543,21 @@ int main (void)
 	Delay(0x1000);													//delay for logic analyzer
 	hede=PTD->PDIR;
 	
+//	USART1_Init(9600);
+//	while(1)
+//	{
+//		printf("hello\n\r");
+//		Delay(800);
+//		printf("world\n\r");
+//		Delay(800);
+//		printf("hello\n\r");
+//		Delay(800);
+//		printf("world welcome\n\r");
+//		Delay(800);
+//	}
 
 /**********************************************************************
-***********							 Test Area					***********************
+***********							 Message Frame				***********************
 ***********************************************************************/
 	pMSG = (MSG*)Message_buf;            //buffer selection
 	pMSG->Addr = 0xAB;
@@ -1476,26 +1571,32 @@ int main (void)
 		
 	IRQ_Init();							// Initialize IRQ
 	
-	WriteByte = tempRead(); // TEST read temperature from CC1120
+	WriteByte = get_Temperature(); // TEST read temperature from CC1120
 	
 	registerConfig();
 	Delay(10);
 	
 	UARTcount = 0 ;
 
-
 	YELLOW_OFF;	GREEN_OFF;	RED_OFF;
 	
 	while(1)
 	{
 		
-#if RXTX_compile	== 1
+#if RXTX_compile	== RADIO_MODE_TX
 		runTX();
 #endif	
 		
-#if RXTX_compile	== 0 
+#if RXTX_compile	== RADIO_MODE_RX
 		runRX();
 #endif	
+		if(Measure_Temp == 1 )
+		{
+			pMSG->Temperature = get_Temperature(); 
+			Delay(100);
+			runTX();
+			Measure_Temp =0;
+		}
 		Delay(2000); 
 		RED_OFF;
 	}
@@ -2107,7 +2208,8 @@ static void runRX(void)
 				 }
 				if(rxBuffer[0] != 0)
 				{
-					//GREEN_ON;
+					RED_OFF;
+					GREEN_ON;
 					Command_Parse(rxBuffer);
 				}
 				// Reset packet semaphore
@@ -2148,13 +2250,14 @@ static void createPacket(char txBuffer[])
   txBuffer[1] = (uint8_t) (packetCounter >> 8);     // MSB of packetCounter
   txBuffer[2] = (uint8_t)  packetCounter;           // LSB of packetCounter
 
-	txBuffer[3] = pMSG->Addr;
-	txBuffer[4] = pMSG->Password;
-	txBuffer[5] = pMSG->Command;
-	txBuffer[6] = pMSG->Direction;
-	txBuffer[7] = pMSG->RSSI;
-	txBuffer[8] = pMSG->WakeUpTime;
-	txBuffer[9] = pMSG->Temperature;
+	txBuffer[3]  
+	= pMSG->Addr;
+	txBuffer[4]  = pMSG->Password;
+	txBuffer[5]  = pMSG->Command;
+	txBuffer[6]  = pMSG->Direction;
+	txBuffer[7]  = pMSG->RSSI;
+	txBuffer[8]  = pMSG->WakeUpTime;
+	txBuffer[9]  = pMSG->Temperature;
 	txBuffer[10] = pMSG->AlarmFlags;
 
     // Fill rest of buffer with random bytes
@@ -2312,43 +2415,68 @@ static void runTX(void)
   GREEN_OFF;
 }
 
+//#define NOP 							0
+//#define	set_RED						1
+//#define	set_GREEN					2
+//#define	set_YELLOW				3
+//#define	RESET_LEDS				4
+//#define	GET_TEMPERATURE 	5
+//#define Frame_ACK					6
+
+typedef enum 
+{
+	NOP = 0,
+	set_RED,
+	set_GREEN,
+	set_YELLOW,
+	RESET_LEDS,
+	GET_TEMPERATURE,
+	Frame_ACK,
+	Start_DCP,
+}Commands_t;
+
 void Command_Parse(char* buf)
 {
 	
 	// pMSG->Command will be used here 
 	switch(buf[5])
 	{
-		case 0: //nop 
+		case NOP: //nop 
 			{
 				
 			}
-		case 1: //red on
+		case set_RED: //red on
 			{
 				RED_ON;
 				GREEN_OFF;
 				YELLOW_OFF;
 			}
-		case 2: //green on
+		case set_GREEN: //green on
 			{
 				RED_OFF;
 				GREEN_ON;
 				YELLOW_OFF;
 			}
-		case 3: //yellow on
+		case set_YELLOW: //yellow on
 			{
 				RED_OFF;
 				GREEN_OFF;
 				YELLOW_ON;
 			}
-		case 4: // turn of leds
+		case RESET_LEDS: // turn of leds
 			{
 				RED_OFF;
 				GREEN_OFF;
 				YELLOW_OFF;
 			}
-		case 5: // read temperature and send it 
+		case GET_TEMPERATURE: // read temperature and send it 
 			{
-				buf[0] = tempRead();
+				Measure_Temp = 1;
+			}
+			
+		case Frame_ACK: //frame number acknowledged 
+			{
+				
 			}
 	}
 }
@@ -2417,6 +2545,186 @@ void Command_Parse(char* buf)
 //		GREEN_ON;
 //		Delay(1000); 
 //	}
+
+
+/**********************************************************************
+***********							 SPI_Init							*************************
+***********************************************************************	
+	Aim  : initialize SPI for Kl25
+	NOTE : 
+**********************************************************************/
+	void spi_init(void)
+{
+		  	 																								
+		int dly;
+		
+    SIM->SCGC4 |= SIM_SCGC4_SPI1_MASK;        	 								//Enable SPI1 clock  
+		
+		
+		//manual ss pin 
+//		PORTD->PCR[4] |= PORT_PCR_MUX(1); 													//SS pin gpio
+//		PTD->PDDR     |= (1UL<<4);																	//SS pin output PD4
+		
+		PORTD->PCR[3] |= PORT_PCR_MUX(1); 													//SS pin gpio
+		PTD->PDDR     |= (1UL<<3);																	//SS pin output PD3
+		
+//		PORTA->PCR[1]   |= PORT_PCR_MUX(1); 
+//		PTA->PDDR   	  |= (1UL);																	
+		
+		PORTD->PCR[2] |= PORT_PCR_MUX(1); 													//TI_Reset pin gpio
+		PTD->PDDR     |= (1UL<<2);																	//TI_Reset pin output PD2
+		
+		//PORTD->PCR[0] = PORT_PCR_MUX(0x2);           							//Set PTD4 to mux 2   (SS)
+		PORTD->PCR[5] = PORT_PCR_MUX(0x02);           							//Set PTD5 to mux 2   (clk)
+		PORTD->PCR[6] = PORT_PCR_MUX(0x02);           							//Set PTD6 to mux 2   (Mosi)
+		PORTD->PCR[7] = PORT_PCR_MUX(0x02);           							//Set PTD7 to mux 2   (Miso)
+		
+		SPI1->C1 = SPI_C1_MSTR_MASK;         											//Set SPI0 to Master   
+		SPI1->C2 = SPI_C2_MODFEN_MASK;                           	//Master SS pin acts as slave select output        
+		//SPI1->BR = (SPI_BR_SPPR(0x111) | SPI_BR_SPR(0x0100));     //Set baud rate prescale divisor to 3 & set baud rate divisor to 32 for baud rate of 15625 hz        
+//		SPI1->BR |= 0x30;
+			
+			
+			SPI1->BR |= 0x43;
+//			SPI1->BR |= 0x45; // test
+//		SPI1->C1 |=  (1UL << 3) ; 										//SPI MOD 3
+//		SPI1->C1 |=  (1UL << 2) ; 
+		
+		dly=1000;
+		while(dly--);
+		SPI1->C1 |= 0x40;																					//SPI1 Enable
+		PTD->PSOR |= (1UL<<4);
+		PTD->PSOR |= (1UL<<2);
+	}
+	
+/**********************************************************************
+***********							 SPI_SEND							*************************
+***********************************************************************	
+	Aim  :  send and recieve data via SPI
+	NOTE : 
+**********************************************************************/
+char SPI_Send(char Data)
+{
+	while(!(SPI_S_SPTEF_MASK & SPI1->S));   
+	SPI1->D = Data;																								//Write Data
+	while(!(SPI_S_SPRF_MASK & SPI1->S)); 
+	return 	SPI1->D;																							//Read Data
+
+}
+
+
+//uint16_t UART_baud;
+//uint16_t divisor;
+//#define UART_OSCERCLK   	8000000
+///****************************************************************************************************/
+///* 													 UART Initialize Function   																			 		 	*/
+///****************************************************************************************************/
+//void USART1_Init(uint16_t baud_rate)
+//{
+//	char osr=15;
+//	UART_baud=baud_rate;
+
+//	//This part will be added to GPIO Init function!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//		// Select "Alt 2" usage to enable UART0 on pins
+//	PORTA->PCR[1] = PORT_PCR_ISF_MASK|PORT_PCR_MUX(0x2);
+//	PORTA->PCR[2] = PORT_PCR_ISF_MASK|PORT_PCR_MUX(0x2);
+//	
+
+//	
+//// Turn on clock to UART0 module and select 48Mhz clock (FLL/PLL source)
+//  SIM->SCGC4 |= SIM_SCGC4_UART2_MASK;
+//  SIM->SOPT2 &= ~SIM_SOPT2_UART0SRC_MASK;
+//  SIM->SOPT2 |= SIM_SOPT2_UART0SRC(1);                 //OSCERCLK selected (8MHZ Cristal)
+
+//	
+//	UART0->C2 &= ~(UARTLP_C2_RE_MASK | UARTLP_C2_TE_MASK |UART0_C2_RIE_MASK); 
+
+//  UART0->C2 = 0;						//disable uart 0 to change registers
+//  UART0->C1 = 0;
+//  UART0->C3 = 0;
+//  UART0->S2 = 0;    
+//		
+//		// Set the baud rate divisor
+// 	divisor = (uint16_t)(UART_OSCERCLK / ((osr+1)* baud_rate));
+//  UART0->C4 = osr;											//osr = 3
+//  UART0->BDH = (divisor >> 8) & UARTLP_BDH_SBR_MASK;
+//  UART0->BDL = (divisor & UARTLP_BDL_SBR_MASK);
+//		
+////	UART0->C1 |=UART0_C1_PE_MASK; 		// parity enable
+
+////	PTA->PCOR     |= (1UL<<5);										// Adm Recv ON && TX OFF
+//		
+//	UART0->C2 = UARTLP_C2_RE_MASK | UARTLP_C2_TE_MASK |UART0_C2_RIE_MASK;								// Enable Uart-0
+//	
+//	//Enable UART interrupt				
+//	NVIC_EnableIRQ(UART0_IRQn);
+//	NVIC_SetPriority(UART0_IRQn,2);
+//	
+////			__asm ("cpsie i");
+//		
+//}
+/****************************************************************************************************/
+/*														   UART getCHAR																									      */
+/****************************************************************************************************/
+char UART_getchar(void )
+{
+//	PTA->PCOR     |= (1UL<<5);										// Adm Recv ON && TX OFF
+	while (!(UART0->S1 & UART0_S1_RDRF_MASK));   //  Wait until character has been received 
+	return UART0->D ;															//Recieve Char
+}
+/****************************************************************************************************/
+/*  															UART putCHAR        																	            */
+/****************************************************************************************************/
+char UART_putchar(char Udata )
+{
+//	PTA->PSOR     |= (1UL<<5);										// Adm Recv OFF && TX ON
+//	DelayUs(20);
+	/* Wait until space is available in the FIFO */
+	//while(!(UART0->S1 & UART0_S1_TDRE_MASK) && !(UART0->S1 & UART_S1_TC_MASK));
+	while(!(UART0->S1 & UART0_S1_TDRE_MASK));
+
+	while(!(UART0->S1 & UART_S1_TC_MASK)); 	
+//  Delay(10);
+	UART0->D = Udata;
+//		DelayUs(20);
+//		PTA->PCOR     |= (1UL<<5);										// Adm Recv ONN && TX OFF
+//	return Udata;
+		return 0;	  
+}
+/****************************************************************************************************/
+/* 															  UART SEND Func        																	          */
+/****************************************************************************************************/
+void UART_Send(char* DATA, char datasize)
+{
+	int j;
+//	PTA->PSOR     |= (1UL<<5);										// Adm Recv OFF && TX ON
+//	Delay(1);
+//	__disable_irq();
+	for(j=0; j<datasize; j++)
+		{
+			UART_putchar(DATA[j]);
+		}
+//	PTA->PCOR     |= (1UL<<5);										// Adm Recv ON && TX OFF 
+//	__enable_irq();
+}
+/****************************************************************************************************/
+/*														  UART RECIEVE Func     																	            */
+/****************************************************************************************************/
+void UART_Recv(char* DATA, int datasize)
+{
+	int j;
+	//	UART_RX_clr();
+	//	PTA->PCOR     |= (1UL<<5);										// Adm Recv ON && TX OFF
+	
+//	__disable_irq();
+			 
+	for (j=0; j<datasize; j++)
+	{
+		DATA[j]=UART_getchar();
+	}
+	//	PTA->PCOR     |= (1UL<<5);										// Adm Recv ON && TX OFF
+//	__enable_irq();
+}		 
 
 
 

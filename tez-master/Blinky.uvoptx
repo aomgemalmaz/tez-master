@@ -92,12 +92,12 @@
         <Book>
           <Number>2</Number>
           <Title>Quick Start Guide (FRDM-KL25Z)</Title>
-          <Path>C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.11.0\Boards\Freescale\FRDM-KL25Z\Documents\FRDM-KL25Z_QSG.pdf</Path>
+          <Path>C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.13.0\Boards\NXP\FRDM-KL25Z\Documents\FRDM-KL25Z_QSG.pdf</Path>
         </Book>
         <Book>
           <Number>3</Number>
           <Title>User Manual (FRDM-KL25Z)</Title>
-          <Path>C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.11.0\Boards\Freescale\FRDM-KL25Z\Documents\FRDM-KL25Z_UM.pdf</Path>
+          <Path>C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.13.0\Boards\NXP\FRDM-KL25Z\Documents\FRDM-KL25Z_UM.pdf</Path>
         </Book>
         <Book>
           <Number>4</Number>
@@ -182,24 +182,7 @@
           <Name>-S0 -C0 -P0 -FD1FFFF000 -FC4000 -FN1 -FF0MK_P128_48MHZ -FS00 -FL020000 -FP0($$Device:MKL25Z128xxx4$Flash\MK_P128_48MHZ.FLM))</Name>
         </SetRegEntry>
       </TargetDriverDllRegistry>
-      <Breakpoint>
-        <Bp>
-          <Number>0</Number>
-          <Type>0</Type>
-          <LineNumber>2108</LineNumber>
-          <EnabledFlag>1</EnabledFlag>
-          <Address>4460</Address>
-          <ByteObject>0</ByteObject>
-          <HtxType>0</HtxType>
-          <ManyObjects>0</ManyObjects>
-          <SizeOfObject>0</SizeOfObject>
-          <BreakByAccess>0</BreakByAccess>
-          <BreakIfRCount>1</BreakIfRCount>
-          <Filename>.\Blinky.c</Filename>
-          <ExecCommand></ExecCommand>
-          <Expression>\\Blinky\Blinky.c\2108</Expression>
-        </Bp>
-      </Breakpoint>
+      <Breakpoint/>
       <WatchWindow1>
         <Ww>
           <count>0</count>
@@ -219,12 +202,12 @@
         <Ww>
           <count>3</count>
           <WinNumber>1</WinNumber>
-          <ItemText>pMSG</ItemText>
+          <ItemText>pMSG,0x10</ItemText>
         </Ww>
         <Ww>
           <count>4</count>
           <WinNumber>1</WinNumber>
-          <ItemText>Message_buf</ItemText>
+          <ItemText>Message_buf,0x10</ItemText>
         </Ww>
         <Ww>
           <count>5</count>
@@ -235,6 +218,36 @@
           <count>6</count>
           <WinNumber>1</WinNumber>
           <ItemText>txBuffer,0x10</ItemText>
+        </Ww>
+        <Ww>
+          <count>7</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>Measure_Temp</ItemText>
+        </Ww>
+        <Ww>
+          <count>8</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>WriteByte,0x10</ItemText>
+        </Ww>
+        <Ww>
+          <count>9</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>pMSG-&gt;Temperature</ItemText>
+        </Ww>
+        <Ww>
+          <count>10</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>WriteByte,0x10</ItemText>
+        </Ww>
+        <Ww>
+          <count>11</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>divisor</ItemText>
+        </Ww>
+        <Ww>
+          <count>12</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>Measure_Temp</ItemText>
         </Ww>
       </WatchWindow1>
       <WatchWindow2>
@@ -373,7 +386,7 @@
       <DebugFlag>
         <trace>0</trace>
         <periodic>1</periodic>
-        <aLwin>1</aLwin>
+        <aLwin>0</aLwin>
         <aCover>0</aCover>
         <aSer1>0</aSer1>
         <aSer2>0</aSer2>
@@ -402,6 +415,12 @@
       <Lin2Executable></Lin2Executable>
       <Lin2ConfigFile></Lin2ConfigFile>
       <bLin2Auto>0</bLin2Auto>
+      <SystemViewers>
+        <Entry>
+          <Name>System Viewer\UART0</Name>
+          <WinId>35905</WinId>
+        </Entry>
+      </SystemViewers>
     </TargetOption>
   </Target>
 
@@ -1201,6 +1220,22 @@
           <Number>42</Number>
           <Type>0</Type>
           <LineNumber>2108</LineNumber>
+          <EnabledFlag>1</EnabledFlag>
+          <Address>0</Address>
+          <ByteObject>0</ByteObject>
+          <HtxType>0</HtxType>
+          <ManyObjects>0</ManyObjects>
+          <SizeOfObject>0</SizeOfObject>
+          <BreakByAccess>0</BreakByAccess>
+          <BreakIfRCount>0</BreakIfRCount>
+          <Filename>.\Blinky.c</Filename>
+          <ExecCommand></ExecCommand>
+          <Expression></Expression>
+        </Bp>
+        <Bp>
+          <Number>43</Number>
+          <Type>0</Type>
+          <LineNumber>1501</LineNumber>
           <EnabledFlag>1</EnabledFlag>
           <Address>0</Address>
           <ByteObject>0</ByteObject>
