@@ -124,8 +124,9 @@ char toto[22]="AMK POKUMANI";
 char got[22];
 char packetSemaphore;
 int  packetCounter = 0;
-#define PKTLEN	11  // 1 < PKTLEN < 126  (first 30)
-char Message_buf[PKTLEN];							//message buffer
+#define PKTLEN	22  // 1 < PKTLEN < 126  (first 30)
+char Message_buf[15];							//message buffer
+char Racio_Msg_buf[PKTLEN];	
 char Measure_Temp;
 ///**********************************************************************
 //***********							 Systick					  	*************************
@@ -1506,6 +1507,7 @@ typedef  struct
 	char Data[15];	//temperature value
 }RADIO_Message;
 
+RADIO_Message* pRadio_Message;
 
 #define RADIO_MODE_RX		0
 #define RADIO_MODE_TX		1	
@@ -1562,22 +1564,33 @@ int main (void)
 ***********************************************************************/
 	pMSG = (MSG*)Message_buf;            //buffer selection
 	pMSG->Addr = 0xAB;
-	pMSG->Password = 0x01;
-	pMSG->Direction = 0x02;
-	pMSG->RSSI = 0xDF;
-	pMSG->WakeUpTime = 0x11;
+	pMSG->Password = 0xAB;
+	pMSG->Direction = 0xAB;
+	pMSG->RSSI = 0xAB;
+	pMSG->WakeUpTime = 0xAB;
 	pMSG->Temperature = 0x23;
-	pMSG->AlarmFlags = 0xCC;
-	pMSG->Command = 0x05;
+	pMSG->AlarmFlags = 0xAB;
+	pMSG->Command = 0xAB;
+	
+	pRadio_Message = (RADIO_Message*)Racio_Msg_buf;
+	pRadio_Message->Source = 0x02;
+	pRadio_Message->Destination = 0x02;
+	pRadio_Message->Direction = 0x02;
+	pRadio_Message->Frame_Type = 0x02;
+	pRadio_Message->Hop_Count = 0x02;
+	pRadio_Message->Frame_ID = 0x02;
+	pRadio_Message->Data[0] = *Message_buf;
+	
+	
 		
 	IRQ_Init();							// Initialize IRQ
 	
 	WriteByte = get_Temperature(); // TEST read temperature from CC1120
 	
 	registerConfig();
-	Delay(10);
+	Delay(100);
 	
-	UARTcount = 0 ;
+
 
 	YELLOW_OFF;	GREEN_OFF;	RED_OFF;
 	
@@ -1591,14 +1604,14 @@ int main (void)
 #if RXTX_compile	== RADIO_MODE_RX
 		runRX();
 #endif	
-		if(Measure_Temp == 1 )
-		{
-			pMSG->Temperature = get_Temperature(); 
-			Delay(100);
-			runTX();
-			Measure_Temp =0;
-		}
-		Delay(2000); 
+//		if(Measure_Temp == 1 )
+//		{
+//			pMSG->Temperature = get_Temperature(); 
+//			Delay(100);
+//			runTX();
+//			Measure_Temp =0;
+//		}
+		//Delay(2000); 
 		RED_OFF;
 	}
 }
@@ -2251,15 +2264,31 @@ static void createPacket(char txBuffer[])
   txBuffer[1] = (uint8_t) (packetCounter >> 8);     // MSB of packetCounter
   txBuffer[2] = (uint8_t)  packetCounter;           // LSB of packetCounter
 
-	txBuffer[3]  = pMSG->Addr;
-	txBuffer[4]  = pMSG->Password;
-	txBuffer[5]  = pMSG->Command;
-	txBuffer[6]  = pMSG->Direction;
-	txBuffer[7]  = pMSG->RSSI;
-	txBuffer[8]  = pMSG->WakeUpTime;
-	txBuffer[9]  = pMSG->Temperature;
-	txBuffer[10] = pMSG->AlarmFlags;
-
+	txBuffer[3]  = pRadio_Message->Source ;
+	txBuffer[4]  = pRadio_Message->Destination ;
+	txBuffer[5]  = pRadio_Message->Direction ;
+	txBuffer[6]  = pRadio_Message->Frame_Type ;
+	txBuffer[7]  = pRadio_Message->Hop_Count ;
+	txBuffer[8]  = pRadio_Message->Frame_ID ;
+	txBuffer[9]  = pMSG->Addr;
+	txBuffer[10]  = pMSG->Password;
+	txBuffer[11]  = pMSG->Command;
+	txBuffer[12]  = pMSG->Direction;
+	txBuffer[13]  = pMSG->RSSI;
+	txBuffer[14]  = pMSG->WakeUpTime;
+	txBuffer[15]  = pMSG->Temperature;
+	txBuffer[16] = pMSG->AlarmFlags;
+	
+	pMSG->Addr = 0xAB;
+	pMSG->Password = 0xAB;
+	pMSG->Direction = 0xAB;
+	pMSG->RSSI = 0xAB;
+	pMSG->WakeUpTime = 0xAB;
+	pMSG->Temperature = 0x23;
+	pMSG->AlarmFlags = 0xAB;
+	pMSG->Command = 0xAB;
+	
+	
     // Fill rest of buffer with random bytes
 //  for(i = 3; i < (PKTLEN + 1); i++) 
 //	{
