@@ -76,7 +76,7 @@ void Command_Parse(char* buf);
 //KL25.h functions
 void spi_init(void);
 char SPI_Send(char Data);
-void USART1_Init(uint16_t baud_rate);
+void USART1_Init(uint32_t baud_rate);
 char UART_getchar(void );
 char UART_putchar(char Udata );
 void UART_Send(char* DATA, char datasize);
@@ -1285,7 +1285,7 @@ uint16_t divisor;
 /****************************************************************************************************/
 /* 													 UART Initialize Function   																			 		 	*/
 /****************************************************************************************************/
-void USART1_Init(uint16_t baud_rate)
+void USART1_Init(uint32_t baud_rate)
 {
 	char osr=15;
 	UART_baud=baud_rate;
@@ -1323,11 +1323,12 @@ void USART1_Init(uint16_t baud_rate)
 
 //	PTA->PCOR     |= (1UL<<5);										// Adm Recv ON && TX OFF
 		
-	UART0->C2 = UARTLP_C2_RE_MASK | UARTLP_C2_TE_MASK |UART0_C2_RIE_MASK;								// Enable Uart-0
+//	UART0->C2 = UARTLP_C2_RE_MASK | UARTLP_C2_TE_MASK |UART0_C2_RIE_MASK;								// Enable Uart-0
+	UART0->C2 = UARTLP_C2_TE_MASK ;	
 	
 	//Enable UART interrupt				
-	NVIC_EnableIRQ(UART0_IRQn);
-	NVIC_SetPriority(UART0_IRQn,2);
+//	NVIC_EnableIRQ(UART0_IRQn);
+//	NVIC_SetPriority(UART0_IRQn,2);
 	
 //			__asm ("cpsie i");
 }	
@@ -1530,7 +1531,7 @@ int main (void)
 	Delay(0x500);                     																//delay  
 	LED_Init();           																						//Initialize the LEDs  
 	Delay(100);
-//	USART1_Init(9600);
+	USART1_Init(115200);
 	Delay(100);
 	spi_init();																												// SPI-1 init 
 	Delay(10);
@@ -1540,7 +1541,7 @@ int main (void)
 	/*TEST*/ 
 //	TI_Init();
 	TI_HW_Reset();
-	Delay(0x1000);													//delay for logic analyzer
+	Delay(0x500);													//delay for logic analyzer
 	hede=PTD->PDIR;
 	
 //	USART1_Init(9600);
@@ -2250,8 +2251,7 @@ static void createPacket(char txBuffer[])
   txBuffer[1] = (uint8_t) (packetCounter >> 8);     // MSB of packetCounter
   txBuffer[2] = (uint8_t)  packetCounter;           // LSB of packetCounter
 
-	txBuffer[3]  
-	= pMSG->Addr;
+	txBuffer[3]  = pMSG->Addr;
 	txBuffer[4]  = pMSG->Password;
 	txBuffer[5]  = pMSG->Command;
 	txBuffer[6]  = pMSG->Direction;
@@ -2585,7 +2585,7 @@ void Command_Parse(char* buf)
 //		SPI1->BR |= 0x30;
 			
 			
-			SPI1->BR |= 0x43;
+			SPI1->BR |= 0x77;	// 0x43;
 //			SPI1->BR |= 0x45; // test
 //		SPI1->C1 |=  (1UL << 3) ; 										//SPI MOD 3
 //		SPI1->C1 |=  (1UL << 2) ; 

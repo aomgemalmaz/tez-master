@@ -91,5 +91,5 @@
 
 //static void createPacket(char txBuffer[]);
 //static void TX_manualCalibration(void) ;
-
+static void calibrateRCOsc(void) ;
 
